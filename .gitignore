@@ -34,3 +34,28 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+
+
+# General folder view and metadata options
+.DS_Store
+.localized
+.LSOverride
+Icon
+
+# Resource forks / Shadow files
+._*
+
+# Files that might appear on external disks / Network shares
+.Spotlight-V100
+.Trashes
+.fseventsd
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Remote AFP share directories
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
