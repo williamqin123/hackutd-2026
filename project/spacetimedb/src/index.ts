@@ -1,12 +1,13 @@
 import { schema, table, t } from "spacetimedb/server";
-import { TimeDuration } from "spacetimedb";
+import { TimeDuration, Timestamp } from "spacetimedb";
 
 const spacetimedb = schema({
   simulationState: table(
     { public: true },
     {
       regionTag: t.string(),
-      realWorldStartTs: t.timestamp(),
+      historicalStartTs: t.timestamp(),
+      lastPlayedTs: t.timestamp(),
       elapsedDur: t.timeDuration(),
       isPlaying: t.bool(),
     },
@@ -30,17 +31,19 @@ function findSimulation(
 
 // Create a simulation (initially paused)
 export const createSimulation = spacetimedb.reducer(
-  { regionTag: t.string() },
-  (ctx, { regionTag }) => {
-    for (const sim of ctx.db.simulationState.iter()) {
-      if (sim.regionTag === regionTag) {
-        throw new Error(`Simulation ${regionTag} already exists`);
-      }
+  {
+    regionTag: t.string(),
+    historicalStartTs: t.timestamp(),
+  },
+  (ctx, { regionTag, historicalStartTs }) => {
+    if (findSimulation(ctx, regionTag)) {
+      throw new Error(`Simulation ${regionTag} already exists`);
     }
 
     ctx.db.simulationState.insert({
       regionTag,
-      realWorldStartTs: ctx.timestamp,
+      historicalStartTs,
+      lastPlayedTs: ctx.timestamp,
       elapsedDur: new TimeDuration(0n),
       isPlaying: false,
     });
@@ -63,7 +66,7 @@ export const playSimulation = spacetimedb.reducer(
 
     ctx.db.simulationState.insert({
       ...sim,
-      realWorldStartTs: ctx.timestamp,
+      lastPlayedTs: ctx.timestamp,
       isPlaying: true,
     });
   },
@@ -73,9 +76,7 @@ export const playSimulation = spacetimedb.reducer(
 export const pauseSimulation = spacetimedb.reducer(
   { regionTag: t.string() },
   (ctx, { regionTag }) => {
-    const sim = [...ctx.db.simulationState.iter()].find(
-      (row) => row.regionTag === regionTag,
-    );
+    const sim = findSimulation(ctx, regionTag);
 
     if (!sim) {
       throw new Error(`Simulation ${regionTag} not found`);
@@ -85,7 +86,7 @@ export const pauseSimulation = spacetimedb.reducer(
 
     const elapsedMicros =
       ctx.timestamp.microsSinceUnixEpoch -
-      sim.realWorldStartTs.microsSinceUnixEpoch;
+      sim.lastPlayedTs.microsSinceUnixEpoch;
 
     const totalMicros = sim.elapsedDur.micros + elapsedMicros;
 
