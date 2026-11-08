@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSpacetimeDB, useTable } from 'spacetimedb/react';
 import { tables } from '../../../src/module_bindings';
+import '../sos.css';
 
 // Diverse curated locations across Harris County (flood areas during Hurricane Harvey)
 const HARRIS_COUNTY_LOCATIONS = [
@@ -167,6 +168,18 @@ export default function MobileSosPage() {
     '🚤 Need Boat Evacuation',
     '⚡ Power Outage',
   ];
+
+  // Ensure body and html background fill screen edge-to-edge on wide desktop viewports
+  useEffect(() => {
+    const prevBodyBg = document.body.style.backgroundColor;
+    const prevHtmlBg = document.documentElement.style.backgroundColor;
+    document.body.style.backgroundColor = '#450a0a';
+    document.documentElement.style.backgroundColor = '#450a0a';
+    return () => {
+      document.body.style.backgroundColor = prevBodyBg;
+      document.documentElement.style.backgroundColor = prevHtmlBg;
+    };
+  }, []);
 
   // Re-roll random Harris County location
   const handleShuffleHarrisLocation = useCallback(() => {
@@ -357,226 +370,33 @@ export default function MobileSosPage() {
 
   return (
     <main className="mobile-sos-root">
-      <style jsx global>{`
-        @keyframes pulseWave {
-          0% {
-            transform: translate(-50%, -50%) scale(0.85);
-            opacity: 0.9;
-            box-shadow: 0 0 10px rgba(255, 255, 255, 0.8), inset 0 0 15px rgba(255, 100, 100, 0.4);
-          }
-          40% {
-            opacity: 0.6;
-          }
-          100% {
-            transform: translate(-50%, -50%) scale(2.4);
-            opacity: 0;
-            box-shadow: 0 0 40px rgba(255, 255, 255, 0);
-          }
-        }
-
-        @keyframes sosBreathing {
-          0%, 100% {
-            transform: scale(1);
-            box-shadow:
-              0 0 35px rgba(255, 255, 255, 0.45),
-              0 14px 45px rgba(0, 0, 0, 0.65),
-              inset 0 4px 10px rgba(255, 255, 255, 0.6);
-          }
-          50% {
-            transform: scale(1.042);
-            box-shadow:
-              0 0 65px rgba(255, 255, 255, 0.85),
-              0 22px 60px rgba(0, 0, 0, 0.75),
-              inset 0 6px 16px rgba(255, 255, 255, 0.8);
-          }
-        }
-
-        @keyframes beaconGlow {
-          0%, 100% { opacity: 0.8; transform: scale(1); }
-          50% { opacity: 1; transform: scale(1.15); }
-        }
-
-        @keyframes modalPop {
-          0% {
-            opacity: 0;
-            transform: scale(0.92) translateY(20px);
-          }
-          100% {
-            opacity: 1;
-            transform: scale(1) translateY(0);
-          }
-        }
-
-        @keyframes radarSweep {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-
-        .mobile-sos-root {
-          min-height: 100vh;
-          min-height: 100dvh;
-          width: 100%;
-          background: radial-gradient(circle at 50% 25%, #ef4444 0%, #dc2626 35%, #991b1b 75%, #450a0a 100%);
-          color: #ffffff;
-          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: space-between;
-          padding: 16px 20px 24px;
-          box-sizing: border-box;
-          overflow-x: hidden;
-          position: relative;
-        }
-
-        .mobile-sos-root::before {
-          content: "";
-          position: absolute;
-          inset: 0;
-          background-image: radial-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 0);
-          background-size: 24px 24px;
-          pointer-events: none;
-          opacity: 0.6;
-        }
-
-        .sos-pulse-ring {
-          position: absolute;
-          top: 50%;
-          left: 50%;
-          border-radius: 50%;
-          border: 2px solid rgba(255, 255, 255, 0.75);
-          pointer-events: none;
-        }
-
-        .sos-btn-interactive:active {
-          transform: scale(0.94) !important;
-          transition: transform 0.1s ease;
-        }
-      `}</style>
-
       {/* Top Header / Status bar */}
-      <header
-        style={{
-          width: '100%',
-          maxWidth: 440,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 6,
-          zIndex: 2,
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            width: '100%',
-            padding: '4px 2px',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span
-              style={{
-                width: 10,
-                height: 10,
-                borderRadius: '50%',
-                backgroundColor: isActive ? '#22c55e' : '#f59e0b',
-                boxShadow: isActive ? '0 0 8px #22c55e' : '0 0 8px #f59e0b',
-                animation: 'beaconGlow 1.8s infinite ease-in-out',
-              }}
-            />
-            <span
-              style={{
-                fontSize: 12,
-                fontWeight: 700,
-                letterSpacing: 1.2,
-                textTransform: 'uppercase',
-                color: 'rgba(255, 255, 255, 0.9)',
-              }}
-            >
+      <header className="sos-header">
+        <div className="sos-top-bar">
+          <div className="sos-status-indicator">
+            <span className={`sos-status-dot ${isActive ? 'online' : 'connecting'}`} />
+            <span className="sos-status-label">
               {isActive ? 'SPACETIMEDB ONLINE' : 'CONNECTING TO GRID…'}
             </span>
           </div>
 
-          <span
-            style={{
-              fontSize: 11,
-              fontWeight: 800,
-              letterSpacing: 1,
-              padding: '3px 8px',
-              borderRadius: 20,
-              backgroundColor: 'rgba(0, 0, 0, 0.35)',
-              border: '1px solid rgba(255, 255, 255, 0.25)',
-              textTransform: 'uppercase',
-            }}
-          >
+          <span className="sos-grid-badge">
             HARRIS COUNTY
           </span>
         </div>
 
-        <h1
-          style={{
-            fontSize: 22,
-            fontWeight: 900,
-            letterSpacing: -0.5,
-            margin: '4px 0 0',
-            textAlign: 'center',
-            textShadow: '0 2px 10px rgba(0, 0, 0, 0.4)',
-          }}
-        >
+        <h1 className="sos-title">
           Emergency Distress Beacon
         </h1>
-        <p
-          style={{
-            fontSize: 13,
-            color: 'rgba(255, 255, 255, 0.85)',
-            margin: 0,
-            textAlign: 'center',
-          }}
-        >
+        <p className="sos-subtitle">
           Direct link to The WaterBoard & Rescue Dispatch
         </p>
       </header>
 
       {/* Geolocation Section */}
-      <section
-        style={{
-          width: '100%',
-          maxWidth: 440,
-          backgroundColor: 'rgba(0, 0, 0, 0.42)',
-          backdropFilter: 'blur(12px)',
-          WebkitBackdropFilter: 'blur(12px)',
-          border: '1px solid rgba(255, 255, 255, 0.22)',
-          borderRadius: 20,
-          padding: '16px',
-          boxShadow: '0 8px 30px rgba(0, 0, 0, 0.35)',
-          zIndex: 2,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 10,
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
-          <label
-            htmlFor="geo-input"
-            style={{
-              fontSize: 12,
-              fontWeight: 800,
-              letterSpacing: 1,
-              textTransform: 'uppercase',
-              color: 'rgba(255, 255, 255, 0.95)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-            }}
-          >
+      <section className="sos-geo-section">
+        <div className="sos-geo-header">
+          <label htmlFor="geo-input" className="sos-geo-label">
             <svg
               width="15"
               height="15"
@@ -593,50 +413,21 @@ export default function MobileSosPage() {
             Beacon Location
           </label>
 
-          <span
-            style={{
-              fontSize: 11,
-              color: '#fef08a',
-              fontWeight: 700,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-            }}
-          >
+          <span className="sos-geo-area-tag">
             📍 {activeAreaName || 'Harris County'}
           </span>
         </div>
 
         {/* Location input row */}
-        <div style={{ display: 'flex', gap: 8 }}>
-          <div style={{ position: 'relative', flex: 1 }}>
+        <div className="sos-geo-input-row">
+          <div className="sos-geo-input-wrap">
             <input
               id="geo-input"
               type="text"
               value={location}
               onChange={(e) => handleLocationInputChange(e.target.value)}
               placeholder="Harris County address or coordinates"
-              style={{
-                width: '100%',
-                boxSizing: 'border-box',
-                backgroundColor: 'rgba(255, 255, 255, 0.14)',
-                border: '1.5px solid rgba(255, 255, 255, 0.3)',
-                borderRadius: 12,
-                padding: '12px 14px',
-                color: '#ffffff',
-                fontSize: 14,
-                fontWeight: 600,
-                outline: 'none',
-                transition: 'border-color 0.2s, background-color 0.2s',
-              }}
-              onFocus={(e) => {
-                e.target.style.borderColor = '#ffffff';
-                e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.22)';
-              }}
-              onBlur={(e) => {
-                e.target.style.borderColor = 'rgba(255, 255, 255, 0.3)';
-                e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.14)';
-              }}
+              className="sos-geo-input"
             />
           </div>
 
@@ -645,27 +436,12 @@ export default function MobileSosPage() {
             onClick={handleUseGeolocation}
             disabled={geoStatus === 'locating'}
             title="Detect device GPS location"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 6,
-              padding: '0 14px',
-              backgroundColor: geoStatus === 'locating' ? 'rgba(255, 255, 255, 0.18)' : '#ffffff',
-              color: geoStatus === 'locating' ? '#ffffff' : '#991b1b',
-              border: 'none',
-              borderRadius: 12,
-              fontWeight: 800,
-              fontSize: 13,
-              cursor: geoStatus === 'locating' ? 'wait' : 'pointer',
-              boxShadow: '0 4px 15px rgba(0, 0, 0, 0.25)',
-              whiteSpace: 'nowrap',
-            }}
+            className={`sos-gps-btn ${geoStatus === 'locating' ? 'locating' : ''}`}
           >
             {geoStatus === 'locating' ? (
               <>
                 <svg
-                  style={{ animation: 'radarSweep 1s linear infinite' }}
+                  className="sos-radar-spinner"
                   width="16"
                   height="16"
                   viewBox="0 0 24 24"
@@ -703,16 +479,8 @@ export default function MobileSosPage() {
         </div>
 
         {/* Harris County controls & status */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            fontSize: 12,
-            color: 'rgba(255, 255, 255, 0.85)',
-          }}
-        >
-          <span style={{ fontSize: 11, color: '#e2e8f0' }}>
+        <div className="sos-geo-footer">
+          <span className="sos-coords-label">
             Coords: <strong>{coords.lat.toFixed(4)}, {coords.lon.toFixed(4)}</strong>
             {geoAccuracy ? ` (±${geoAccuracy}m)` : ''}
           </span>
@@ -720,90 +488,25 @@ export default function MobileSosPage() {
           <button
             type="button"
             onClick={handleShuffleHarrisLocation}
-            style={{
-              background: 'rgba(255, 255, 255, 0.15)',
-              border: '1px solid rgba(255, 255, 255, 0.3)',
-              borderRadius: 8,
-              color: '#ffffff',
-              fontSize: 11,
-              fontWeight: 700,
-              cursor: 'pointer',
-              padding: '4px 10px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-            }}
+            className="sos-shuffle-btn"
           >
             🎲 Pick Random Harris Co.
           </button>
         </div>
 
         {geoErrorMsg && (
-          <div
-            style={{
-              fontSize: 12,
-              color: '#fecaca',
-              backgroundColor: 'rgba(185, 28, 28, 0.65)',
-              padding: '6px 10px',
-              borderRadius: 8,
-              border: '1px solid rgba(254, 202, 202, 0.3)',
-            }}
-          >
+          <div className="sos-geo-error">
             {geoErrorMsg}
           </div>
         )}
       </section>
 
       {/* Giant SOS Button Area with concentric pulse rings */}
-      <section
-        style={{
-          position: 'relative',
-          width: '100%',
-          maxWidth: 440,
-          height: 290,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          margin: '12px 0',
-          zIndex: 2,
-        }}
-      >
-        <div
-          className="sos-pulse-ring"
-          style={{
-            width: 200,
-            height: 200,
-            animation: 'pulseWave 3.2s cubic-bezier(0.2, 0.6, 0.35, 1) infinite',
-            animationDelay: '0s',
-          }}
-        />
-        <div
-          className="sos-pulse-ring"
-          style={{
-            width: 200,
-            height: 200,
-            animation: 'pulseWave 3.2s cubic-bezier(0.2, 0.6, 0.35, 1) infinite',
-            animationDelay: '0.8s',
-          }}
-        />
-        <div
-          className="sos-pulse-ring"
-          style={{
-            width: 200,
-            height: 200,
-            animation: 'pulseWave 3.2s cubic-bezier(0.2, 0.6, 0.35, 1) infinite',
-            animationDelay: '1.6s',
-          }}
-        />
-        <div
-          className="sos-pulse-ring"
-          style={{
-            width: 200,
-            height: 200,
-            animation: 'pulseWave 3.2s cubic-bezier(0.2, 0.6, 0.35, 1) infinite',
-            animationDelay: '2.4s',
-          }}
-        />
+      <section className="sos-button-section">
+        <div className="sos-pulse-ring ring-1" />
+        <div className="sos-pulse-ring ring-2" />
+        <div className="sos-pulse-ring ring-3" />
+        <div className="sos-pulse-ring ring-4" />
 
         <button
           type="button"
@@ -812,30 +515,11 @@ export default function MobileSosPage() {
             setSubmitSuccess(false);
             setSubmitError(null);
           }}
-          className="sos-btn-interactive"
+          className="sos-giant-button"
           aria-label="Trigger Emergency SOS Dialog"
-          style={{
-            position: 'relative',
-            width: 'clamp(180px, 48vw, 216px)',
-            height: 'clamp(180px, 48vw, 216px)',
-            borderRadius: '50%',
-            background: 'radial-gradient(circle at 36% 32%, #ff4d4d 0%, #dc2626 50%, #881337 100%)',
-            border: '5px solid #ffffff',
-            color: '#ffffff',
-            cursor: 'pointer',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 2,
-            outline: 'none',
-            userSelect: 'none',
-            WebkitTapHighlightColor: 'transparent',
-            animation: 'sosBreathing 2.4s ease-in-out infinite',
-            zIndex: 10,
-          }}
         >
           <svg
+            className="sos-btn-icon"
             width="28"
             height="28"
             viewBox="0 0 24 24"
@@ -844,7 +528,6 @@ export default function MobileSosPage() {
             strokeWidth="2.5"
             strokeLinecap="round"
             strokeLinejoin="round"
-            style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.4))' }}
           >
             <path d="M4.93 19.07a10 10 0 0 1 0-14.14" />
             <path d="M7.76 16.24a6 6 0 0 1 0-8.48" />
@@ -853,96 +536,35 @@ export default function MobileSosPage() {
             <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
           </svg>
 
-          <span
-            style={{
-              fontSize: 'clamp(44px, 12vw, 54px)',
-              fontWeight: 950,
-              lineHeight: 1,
-              letterSpacing: 4,
-              textShadow: '0 4px 14px rgba(0, 0, 0, 0.6), 0 0 20px rgba(255, 255, 255, 0.4)',
-            }}
-          >
+          <span className="sos-btn-text">
             SOS
           </span>
 
-          <span
-            style={{
-              fontSize: 11,
-              fontWeight: 800,
-              letterSpacing: 1.8,
-              textTransform: 'uppercase',
-              color: 'rgba(255, 255, 255, 0.95)',
-              textShadow: '0 2px 6px rgba(0, 0, 0, 0.5)',
-            }}
-          >
+          <span className="sos-btn-subtext">
             TAP TO TRANSMIT
           </span>
         </button>
       </section>
 
       {/* Bottom Footer & Stats */}
-      <footer
-        style={{
-          width: '100%',
-          maxWidth: 440,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 10,
-          textAlign: 'center',
-          zIndex: 2,
-        }}
-      >
-        <div
-          style={{
-            backgroundColor: 'rgba(0, 0, 0, 0.32)',
-            backdropFilter: 'blur(8px)',
-            borderRadius: 14,
-            padding: '10px 16px',
-            border: '1px solid rgba(255, 255, 255, 0.15)',
-            width: '100%',
-            boxSizing: 'border-box',
-          }}
-        >
-          <p
-            style={{
-              fontSize: 13,
-              fontWeight: 700,
-              margin: '0 0 4px',
-              color: '#ffffff',
-            }}
-          >
+      <footer className="sos-footer">
+        <div className="sos-footer-card">
+          <p className="sos-footer-title">
             ⚠️ Tap SOS button to transmit rescue coordinates & situation
           </p>
-          <p
-            style={{
-              fontSize: 11,
-              margin: 0,
-              color: 'rgba(255, 255, 255, 0.75)',
-            }}
-          >
+          <p className="sos-footer-desc">
             Calls SpacetimeDB to create <strong>rescue_request</strong> & <strong>sos</strong> records.
           </p>
         </div>
 
         {/* Live Counters */}
-        <div
-          style={{
-            fontSize: 11,
-            color: 'rgba(255, 255, 255, 0.85)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            flexWrap: 'wrap',
-            justifyContent: 'center',
-          }}
-        >
-          <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#ef4444' }} />
+        <div className="sos-counters-row">
+          <span className="sos-counter-item">
+            <span className="sos-counter-dot requests" />
             <strong>{rescueRequests?.length ?? 0}</strong> rescue requests
           </span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#38bdf8' }} />
+          <span className="sos-counter-item">
+            <span className="sos-counter-dot logs" />
             <strong>{sosRecords?.length ?? 0}</strong> SOS logs
           </span>
         </div>
@@ -954,89 +576,28 @@ export default function MobileSosPage() {
           role="dialog"
           aria-modal="true"
           aria-labelledby="dialog-title"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.78)',
-            backdropFilter: 'blur(10px)',
-            WebkitBackdropFilter: 'blur(10px)',
-            zIndex: 100,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '16px',
-            boxSizing: 'border-box',
-          }}
+          className="sos-modal-overlay"
           onClick={(e) => {
             if (e.target === e.currentTarget && !isSubmitting) {
               handleCloseDialog();
             }
           }}
         >
-          <div
-            style={{
-              width: '100%',
-              maxWidth: 440,
-              backgroundColor: '#170505',
-              backgroundImage: 'radial-gradient(circle at top right, #3b0707 0%, #170505 100%)',
-              border: '1.5px solid rgba(239, 68, 68, 0.45)',
-              borderRadius: 24,
-              padding: '24px 20px',
-              boxShadow: '0 25px 60px rgba(0, 0, 0, 0.8), 0 0 40px rgba(220, 38, 38, 0.3)',
-              boxSizing: 'border-box',
-              animation: 'modalPop 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards',
-              position: 'relative',
-              maxHeight: '90vh',
-              overflowY: 'auto',
-            }}
-          >
+          <div className="sos-modal-card">
             {/* Close Button */}
             <button
               type="button"
               onClick={handleCloseDialog}
               disabled={isSubmitting}
-              style={{
-                position: 'absolute',
-                top: 16,
-                right: 16,
-                background: 'rgba(255, 255, 255, 0.1)',
-                border: 'none',
-                borderRadius: '50%',
-                width: 32,
-                height: 32,
-                display: 'grid',
-                placeItems: 'center',
-                color: '#ffffff',
-                cursor: 'pointer',
-                fontSize: 16,
-              }}
+              className="sos-modal-close-btn"
             >
               ✕
             </button>
 
             {submitSuccess ? (
               /* Success confirmation state */
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  textAlign: 'center',
-                  padding: '12px 0 6px',
-                  gap: 16,
-                }}
-              >
-                <div
-                  style={{
-                    width: 72,
-                    height: 72,
-                    borderRadius: '50%',
-                    backgroundColor: '#16a34a',
-                    boxShadow: '0 0 30px rgba(34, 197, 94, 0.6)',
-                    display: 'grid',
-                    placeItems: 'center',
-                  }}
-                >
+              <div className="sos-success-view">
+                <div className="sos-success-icon-wrap">
                   <svg
                     width="40"
                     height="40"
@@ -1052,104 +613,55 @@ export default function MobileSosPage() {
                 </div>
 
                 <div>
-                  <h2
-                    id="dialog-title"
-                    style={{
-                      fontSize: 22,
-                      fontWeight: 900,
-                      color: '#ffffff',
-                      margin: '0 0 6px',
-                    }}
-                  >
+                  <h2 id="dialog-title" className="sos-modal-title">
                     SOS Transmitted Successfully!
                   </h2>
-                  <p
-                    style={{
-                      fontSize: 13,
-                      color: 'rgba(255, 255, 255, 0.85)',
-                      margin: 0,
-                    }}
-                  >
+                  <p className="sos-modal-subtitle">
                     Created <strong>rescue_request</strong> record on The WaterBoard dispatch & saved to <strong>sos</strong> table.
                   </p>
                 </div>
 
                 {/* Broadcast details card */}
                 {lastSubmission && (
-                  <div
-                    style={{
-                      width: '100%',
-                      backgroundColor: 'rgba(0, 0, 0, 0.45)',
-                      borderRadius: 14,
-                      border: '1px solid rgba(255, 255, 255, 0.15)',
-                      padding: '14px',
-                      textAlign: 'left',
-                      boxSizing: 'border-box',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 8,
-                      fontSize: 13,
-                    }}
-                  >
+                  <div className="sos-success-card">
                     <div>
-                      <span style={{ color: '#86efac', fontWeight: 800 }}>✓ Rescue Request: </span>
-                      <span style={{ color: '#ffffff' }}>Pending dispatch queue</span>
+                      <span className="sos-success-row-label-green">✓ Rescue Request: </span>
+                      <span className="sos-success-row-value">Pending dispatch queue</span>
                     </div>
                     <div>
-                      <span style={{ color: '#fca5a5', fontWeight: 700 }}>Coordinates: </span>
-                      <span style={{ color: '#ffffff' }}>{lastSubmission.lat}, {lastSubmission.lon}</span>
+                      <span className="sos-success-row-label">Coordinates: </span>
+                      <span className="sos-success-row-value">{lastSubmission.lat}, {lastSubmission.lon}</span>
                     </div>
                     <div>
-                      <span style={{ color: '#fca5a5', fontWeight: 700 }}>Location: </span>
-                      <span style={{ color: '#ffffff' }}>{lastSubmission.location}</span>
+                      <span className="sos-success-row-label">Location: </span>
+                      <span className="sos-success-row-value">{lastSubmission.location}</span>
                     </div>
                     <div>
-                      <span style={{ color: '#fca5a5', fontWeight: 700 }}>Message: </span>
-                      <span style={{ color: '#ffffff' }}>{lastSubmission.text}</span>
+                      <span className="sos-success-row-label">Message: </span>
+                      <span className="sos-success-row-value">{lastSubmission.text}</span>
                     </div>
                     <div>
-                      <span style={{ color: '#fca5a5', fontWeight: 700 }}>Timestamp: </span>
-                      <span style={{ color: '#ffffff' }}>{lastSubmission.timestamp}</span>
+                      <span className="sos-success-row-label">Timestamp: </span>
+                      <span className="sos-success-row-value">{lastSubmission.timestamp}</span>
                     </div>
                   </div>
                 )}
 
-                <div style={{ display: 'flex', gap: 10, width: '100%', marginTop: 8 }}>
+                <div className="sos-success-actions">
                   <button
                     type="button"
                     onClick={() => {
                       setSubmitSuccess(false);
                       setSosText('');
                     }}
-                    style={{
-                      flex: 1,
-                      padding: '12px',
-                      borderRadius: 12,
-                      backgroundColor: 'rgba(255, 255, 255, 0.15)',
-                      border: '1px solid rgba(255, 255, 255, 0.25)',
-                      color: '#ffffff',
-                      fontWeight: 700,
-                      fontSize: 14,
-                      cursor: 'pointer',
-                    }}
+                    className="sos-send-another-btn"
                   >
                     Send Another
                   </button>
                   <button
                     type="button"
                     onClick={handleCloseDialog}
-                    style={{
-                      flex: 1,
-                      padding: '12px',
-                      borderRadius: 12,
-                      backgroundColor: '#22c55e',
-                      border: 'none',
-                      color: '#052e16',
-                      fontWeight: 800,
-                      fontSize: 14,
-                      cursor: 'pointer',
-                      boxShadow: '0 4px 15px rgba(34, 197, 94, 0.4)',
-                    }}
+                    className="sos-done-btn"
                   >
                     Done
                   </button>
@@ -1157,61 +669,22 @@ export default function MobileSosPage() {
               </div>
             ) : (
               /* Dialog form: Text box + submit button */
-              <form onSubmit={handleSubmitSos} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <form onSubmit={handleSubmitSos} className="sos-form">
                 <div>
-                  <div
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      backgroundColor: '#dc2626',
-                      padding: '4px 10px',
-                      borderRadius: 20,
-                      fontSize: 11,
-                      fontWeight: 800,
-                      letterSpacing: 1,
-                      textTransform: 'uppercase',
-                      color: '#ffffff',
-                      marginBottom: 8,
-                    }}
-                  >
-                    <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#ffffff' }} />
+                  <div className="sos-distress-badge">
+                    <span className="sos-distress-dot" />
                     Distress Broadcast
                   </div>
-                  <h2
-                    id="dialog-title"
-                    style={{
-                      fontSize: 20,
-                      fontWeight: 900,
-                      color: '#ffffff',
-                      margin: '0 0 4px',
-                    }}
-                  >
+                  <h2 id="dialog-title" className="sos-modal-title">
                     Emergency Details
                   </h2>
-                  <p
-                    style={{
-                      fontSize: 13,
-                      color: 'rgba(255, 255, 255, 0.75)',
-                      margin: 0,
-                    }}
-                  >
+                  <p className="sos-modal-subtitle">
                     Enter situation info to create a priority rescue request.
                   </p>
                 </div>
 
                 {/* Confirmed Location snippet */}
-                <div
-                  style={{
-                    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                    borderRadius: 12,
-                    padding: '10px 12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    border: '1px solid rgba(255, 255, 255, 0.15)',
-                  }}
-                >
+                <div className="sos-location-preview-box">
                   <svg
                     width="18"
                     height="18"
@@ -1227,55 +700,27 @@ export default function MobileSosPage() {
                     <circle cx="12" cy="10" r="3" />
                   </svg>
                   <div style={{ flex: 1, overflow: 'hidden' }}>
-                    <div style={{ fontSize: 10, color: '#fca5a5', fontWeight: 700, textTransform: 'uppercase' }}>
+                    <div className="sos-loc-preview-title">
                       Transmitting From (Harris County)
                     </div>
-                    <div
-                      style={{
-                        fontSize: 13,
-                        fontWeight: 600,
-                        color: '#ffffff',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}
-                    >
+                    <div className="sos-loc-preview-value">
                       {location}
                     </div>
                   </div>
                 </div>
 
                 {/* Quick situation chips */}
-                <div>
-                  <div
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 700,
-                      color: 'rgba(255, 255, 255, 0.8)',
-                      marginBottom: 6,
-                      textTransform: 'uppercase',
-                      letterSpacing: 0.5,
-                    }}
-                  >
+                <div className="sos-quick-tags-section">
+                  <div className="sos-quick-tags-title">
                     Quick Situation Tap:
                   </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  <div className="sos-quick-tags-list">
                     {quickTags.map((tag) => (
                       <button
                         key={tag}
                         type="button"
                         onClick={() => handleAddTag(tag)}
-                        style={{
-                          background: 'rgba(255, 255, 255, 0.1)',
-                          border: '1px solid rgba(255, 255, 255, 0.2)',
-                          borderRadius: 16,
-                          padding: '5px 10px',
-                          color: '#ffffff',
-                          fontSize: 12,
-                          fontWeight: 500,
-                          cursor: 'pointer',
-                          whiteSpace: 'nowrap',
-                        }}
+                        className="sos-tag-chip"
                       >
                         {tag}
                       </button>
@@ -1284,17 +729,8 @@ export default function MobileSosPage() {
                 </div>
 
                 {/* Text Box for Emergency Message */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <label
-                    htmlFor="sos-text-input"
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 800,
-                      letterSpacing: 0.8,
-                      textTransform: 'uppercase',
-                      color: '#ffffff',
-                    }}
-                  >
+                <div className="sos-textarea-wrap">
+                  <label htmlFor="sos-text-input" className="sos-textarea-label">
                     Situation Description & Needs:
                   </label>
                   <textarea
@@ -1303,61 +739,23 @@ export default function MobileSosPage() {
                     value={sosText}
                     onChange={(e) => setSosText(e.target.value)}
                     placeholder="Describe your situation: e.g. 3 people trapped on roof, floodwater at 4ft, elderly diabetic needs medicine, roof accessible..."
-                    style={{
-                      width: '100%',
-                      boxSizing: 'border-box',
-                      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                      border: '1.5px solid rgba(255, 255, 255, 0.25)',
-                      borderRadius: 14,
-                      padding: '12px 14px',
-                      color: '#ffffff',
-                      fontSize: 15,
-                      lineHeight: 1.4,
-                      outline: 'none',
-                      resize: 'none',
-                      fontFamily: 'inherit',
-                    }}
-                    onFocus={(e) => {
-                      e.target.style.borderColor = '#ef4444';
-                    }}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = 'rgba(255, 255, 255, 0.25)';
-                    }}
+                    className="sos-textarea"
                   />
                 </div>
 
                 {submitError && (
-                  <div
-                    style={{
-                      backgroundColor: 'rgba(220, 38, 38, 0.4)',
-                      border: '1px solid #ef4444',
-                      borderRadius: 10,
-                      padding: '8px 12px',
-                      fontSize: 12,
-                      color: '#fecaca',
-                    }}
-                  >
+                  <div className="sos-form-error">
                     ⚠️ {submitError}
                   </div>
                 )}
 
                 {/* Actions: Cancel & Submit Button */}
-                <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+                <div className="sos-modal-actions">
                   <button
                     type="button"
                     onClick={handleCloseDialog}
                     disabled={isSubmitting}
-                    style={{
-                      flex: 1,
-                      padding: '14px',
-                      borderRadius: 14,
-                      backgroundColor: 'rgba(255, 255, 255, 0.12)',
-                      border: '1px solid rgba(255, 255, 255, 0.2)',
-                      color: '#ffffff',
-                      fontWeight: 700,
-                      fontSize: 14,
-                      cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                    }}
+                    className="sos-cancel-btn"
                   >
                     Cancel
                   </button>
@@ -1365,30 +763,12 @@ export default function MobileSosPage() {
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    style={{
-                      flex: 2,
-                      padding: '14px',
-                      borderRadius: 14,
-                      backgroundColor: '#ef4444',
-                      backgroundImage: 'linear-gradient(135deg, #ef4444 0%, #dc2626 50%, #b91c1c 100%)',
-                      border: '2px solid #ffffff',
-                      color: '#ffffff',
-                      fontWeight: 900,
-                      fontSize: 15,
-                      letterSpacing: 0.8,
-                      textTransform: 'uppercase',
-                      cursor: isSubmitting ? 'wait' : 'pointer',
-                      boxShadow: '0 6px 20px rgba(220, 38, 38, 0.6)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 8,
-                    }}
+                    className="sos-submit-btn"
                   >
                     {isSubmitting ? (
                       <>
                         <svg
-                          style={{ animation: 'radarSweep 1s linear infinite' }}
+                          className="sos-radar-spinner"
                           width="18"
                           height="18"
                           viewBox="0 0 24 24"
