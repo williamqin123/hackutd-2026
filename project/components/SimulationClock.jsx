@@ -102,11 +102,11 @@ export default function SimulationClock({ sim, isActive, busy, run }) {
   }
 
   return (
-    <section className="simulation-clock" aria-label="Simulation clock">
-      <h2>Simulation clock</h2>
+    <section className="simulation-clock" aria-label="Demo state controls">
+      <h2>Demo state controls</h2>
       <p>
         {microsLabel(sim?.simTimeMicros)} ·{" "}
-        {sim?.isPlaying ? "LIVE (+1h ticks)" : "paused"}
+        {sim?.isPlaying ? "Auto-advance enabled (+1h per tick)" : "Auto-advance paused"}
       </p>
       <p className="muted">
         {microsLabel(SIM_START_MICROS)} → {microsLabel(SIM_END_MICROS)}
@@ -123,7 +123,7 @@ export default function SimulationClock({ sim, isActive, busy, run }) {
         onChange={(e) => setSliderValue(Number(e.target.value))}
         onMouseUp={(e) => commitSlider(Number(e.target.value))}
         onTouchEnd={(e) => commitSlider(Number(e.target.value))}
-        aria-label="Harvey timeline"
+        aria-label="Demo conditions time"
       />
       <div className="button-row">
         <button
@@ -137,7 +137,7 @@ export default function SimulationClock({ sim, isActive, busy, run }) {
             )
           }
         >
-          Play (+1h)
+          Start auto-advance
         </button>
         <button
           disabled={!isActive}
@@ -150,7 +150,7 @@ export default function SimulationClock({ sim, isActive, busy, run }) {
             )
           }
         >
-          Pause
+          Pause auto-advance
         </button>
         <button
           disabled={!isActive || busy}

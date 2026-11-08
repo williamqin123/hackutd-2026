@@ -388,6 +388,15 @@ export default function MobileSosPage() {
         <h1 className="sos-title">
           Emergency Distress Beacon
         </h1>
+        <p
+          style={{
+            fontSize: 13,
+            color: 'rgba(255, 255, 255, 0.85)',
+            margin: 0,
+            textAlign: 'center',
+          }}
+        >
+          Direct link to WaterBoard & Rescue Dispatch
         <p className="sos-subtitle">
           Direct link to The WaterBoard & Rescue Dispatch
         </p>
@@ -616,7 +625,13 @@ export default function MobileSosPage() {
                   <h2 id="dialog-title" className="sos-modal-title">
                     SOS Transmitted Successfully!
                   </h2>
-                  <p className="sos-modal-subtitle">
+                  <p
+                    style={{
+                      fontSize: 13,
+                      color: 'rgba(255, 255, 255, 0.85)',
+                      margin: 0,
+                    }}
+                  >
                     Created <strong>rescue_request</strong> record on The WaterBoard dispatch & saved to <strong>sos</strong> table.
                   </p>
                 </div>

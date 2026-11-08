@@ -1,5 +1,5 @@
 /**
- * Load historical storm track + USGS gage series prepared for The WaterBoard.
+ * Load historical storm track + USGS gage series prepared for WaterBoard.
  * USGS JSON was fetched from:
  *   https://api.waterdata.usgs.gov/ogcapi/v1/collections/continuous/items
  * for Houston-area stations (param 00065 gage height) during Harvey.
