@@ -5,9 +5,7 @@ export default function Welcome() {
   return (
     <main className={styles.page}>
       <header className={styles.brand}>
-        <span className={styles.logo} aria-hidden="true">
-          ≈
-        </span>
+        <img className={styles.logo} src="/favicon-teal.svg" alt="" width="46" height="46" />
 
         <span>WaterBoard</span>
       </header>

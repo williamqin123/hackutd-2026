@@ -4,9 +4,7 @@ export default function DashboardHeader({ isConnected, isReady }) {
   return (
     <header className={styles.header}>
       <div className={styles.brand}>
-        <span className={styles.logo} aria-hidden="true">
-          ≈
-        </span>
+        <img className={styles.logo} src="/favicon-teal.svg" alt="" width="44" height="44" />
 
         <div>
           <p className={styles.name}>WaterBoard</p>

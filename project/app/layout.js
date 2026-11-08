@@ -6,8 +6,8 @@ export const metadata = {
   description: "Historical flood-response simulation and dispatch coordination",
   manifest: "/manifest.json",
   icons: {
-    icon: "/favicon-teal.png",
-    apple: "/favicon-teal.png",
+    icon: [{ url: "/favicon-teal.svg", type: "image/svg+xml" }],
+    apple: "/favicon-teal.png?v=2",
   },
   appleWebApp: {
     capable: true,
