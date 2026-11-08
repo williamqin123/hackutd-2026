@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "next dev -p 3001",
-    "build": "next build",
+    "build": "npm run build && cp -r public .next/standalone/ && cp -r .next/static .next/standalone/.next/",
     "start": "next start -p $PORT",
     "lint": "next lint",
     "generate": "pnpm --dir spacetimedb install && cargo run -p gen-bindings -- --out-dir src/module_bindings --module-path spacetimedb && prettier --write src/module_bindings",
