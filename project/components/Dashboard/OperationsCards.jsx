@@ -1,41 +1,10 @@
 import styles from "./OperationsCards.module.css";
 
-export default function OperationsCards({ teams, teamsReady, events, eventsReady, shelters, sheltersReady, sheltersError }) {
+export default function OperationsCards({ teams, teamsReady, events, eventsReady }) {
   const availableTeams = teams.filter((team) => team.status === "available");
 
   return (
     <div className={styles.grid}>
-      <section className={styles.card} aria-label="Shelter availability">
-        <h2>Shelter availability</h2>
-        {sheltersError ? <p className={styles.empty} role="alert">{sheltersError}</p>
-          : !sheltersReady ? <p className={styles.empty}>Loading shelters…</p>
-          : shelters.length === 0 ? <p className={styles.empty}>No shelters listed.</p>
-          : <ul className={styles.list}>
-          {shelters.map((shelter) => {
-            const spaces = Math.max(0, shelter.capacity - shelter.occupied);
-            return (
-              <li key={shelter.id} className={styles.shelter}>
-                <div className={styles.shelterHeading}>
-                  <span>{shelter.name}</span>
-                  <span className={spaces > 0 ? styles.free : styles.full}>
-                    {spaces > 0 ? `${spaces} open` : "Full"}
-                  </span>
-                </div>
-                <span className={styles.capabilities}>
-                  {shelter.occupied} / {shelter.capacity} spaces occupied
-                </span>
-                <progress
-                  className={styles.occupancy}
-                  value={shelter.occupied}
-                  max={shelter.capacity}
-                  aria-label={`${shelter.name} occupancy`}
-                />
-              </li>
-            );
-          })}
-        </ul>}
-      </section>
-
       <section className={styles.card} aria-label="Available teams">
         <h2>Available teams</h2>
         {!teamsReady ? (

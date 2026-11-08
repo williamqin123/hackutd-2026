@@ -34,7 +34,6 @@ export default function Dashboard() {
 
   const [simulations, simReady] = useTable(tables.simulationState);
   const [requests, reqReady] = useTable(tables.rescueRequest);
-  const [shelters, sheltersReady] = useTable(tables.shelter);
   const [teams, teamsReady] = useTable(tables.rescueTeam);
   const [assignments, assignReady] = useTable(tables.dispatchAssignment);
   const [events, eventsReady] = useTable(tables.activityEvent);
@@ -50,13 +49,14 @@ export default function Dashboard() {
   const [stormCsv, setStormCsv] = useState([]);
   const [usgsPayload, setUsgsPayload] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [selectedRequestId, setSelectedRequestId] = useState(null);
 
   const autoSeededRef = useRef(false);
+  const autoTeamSeededRef = useRef(false);
 
   const ready =
     simReady &&
     reqReady &&
-    sheltersReady &&
     teamsReady &&
     assignReady &&
     eventsReady &&
@@ -79,6 +79,15 @@ export default function Dashboard() {
       gaugeStations.length === 0 ||
       gaugeReadings.length === 0);
 
+  const needsTeamSeed =
+    ready &&
+    isActive &&
+    teamsReady &&
+    !(
+      teams.length === 15 &&
+      teams.every((team) => String(team.name).startsWith("Houston Unit "))
+    );
+
   useEffect(() => {
     loadFloodMarks()
       .then(setFloodCsv)
@@ -93,16 +102,23 @@ export default function Dashboard() {
       .catch((err) => setError(`Load USGS gauges: ${String(err)}`));
   }, []);
 
-  const pendingSorted = useMemo(
+  const openSorted = useMemo(
     () =>
       [...requests]
-        .filter(
-          (request) =>
-            request.status === "pending" ||
-            request.status === "recommended",
+        .filter((request) =>
+          ["pending", "recommended", "assigned"].includes(request.status),
         )
         .sort((a, b) => b.priorityScore - a.priorityScore),
     [requests],
+  );
+
+  const awaitingSorted = useMemo(
+    () =>
+      openSorted.filter(
+        (request) =>
+          request.status === "pending" || request.status === "recommended",
+      ),
+    [openSorted],
   );
 
   const recentEvents = useMemo(
@@ -175,6 +191,10 @@ export default function Dashboard() {
         }),
       );
 
+      await run("Seed Houston teams", (c) =>
+        c.reducers.seedHoustonRescueTeams(),
+      );
+
       await run("Recompute threats", (c) =>
         c.reducers.recomputeThreats({ regionTag: REGION }),
       );
@@ -196,12 +216,44 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [needsSeed, floodCsv.length, stormCsv.length, usgsPayload, busy]);
 
+  useEffect(() => {
+    if (!needsTeamSeed || autoTeamSeededRef.current || busy) return;
+
+    autoTeamSeededRef.current = true;
+
+    void run("Seed Houston teams", (c) =>
+      c.reducers.seedHoustonRescueTeams(),
+    ).catch(() => {
+      autoTeamSeededRef.current = false;
+    });
+  }, [needsTeamSeed, busy, run]);
+
   function recommendDispatch() {
     return run("Recommend dispatch", (c) => c.reducers.recommendDispatch());
   }
 
+  function recommendDispatchFor(requestId) {
+    return run("Recommend for SOS", (c) =>
+      c.reducers.recommendDispatchFor({ requestId }),
+    );
+  }
+
+  function assignDispatch(requestId, teamId) {
+    return run("Assign dispatch", (c) =>
+      c.reducers.assignDispatch({ requestId, teamId }),
+    );
+  }
+
   function confirmRecommendation(assignmentId) {
     return run("Confirm dispatch", (c) => c.reducers.confirmDispatch({ assignmentId }));
+  }
+
+  function cancelRecommendation(assignmentId) {
+    return run("Cancel dispatch", (c) => c.reducers.cancelDispatch({ assignmentId }));
+  }
+
+  function completeDispatch(assignmentId) {
+    return run("Complete dispatch", (c) => c.reducers.completeDispatch({ assignmentId }));
   }
 
   return (
@@ -231,9 +283,7 @@ export default function Dashboard() {
       )}
 
       <SummaryCards
-        shelters={shelters}
-        sheltersReady={sheltersReady}
-        requests={pendingSorted}
+        requests={awaitingSorted}
         teams={teams}
         requestsReady={reqReady}
         teamsReady={teamsReady}
@@ -255,14 +305,15 @@ export default function Dashboard() {
               floodMarks={floodMarks}
               requests={requests}
               teams={teams}
+              assignments={assignments}
+              selectedRequestId={selectedRequestId}
+              onSelectRequest={setSelectedRequestId}
             />
 
 
           </section>
 
           <OperationsCards
-            shelters={shelters}
-            sheltersReady={sheltersReady}
             teams={teams}
             teamsReady={teamsReady}
             events={recentEvents}
@@ -271,13 +322,19 @@ export default function Dashboard() {
         </div>
 
         <SosList
-          requests={pendingSorted}
+          requests={openSorted}
           teams={teams}
           assignments={assignments}
           ready={reqReady && teamsReady && assignReady}
           connected={isActive}
+          selectedId={selectedRequestId}
+          onSelectRequest={setSelectedRequestId}
           onRecommend={recommendDispatch}
+          onRecommendFor={recommendDispatchFor}
+          onAssign={assignDispatch}
           onConfirm={confirmRecommendation}
+          onCancel={cancelRecommendation}
+          onComplete={completeDispatch}
         />
       </div>
 
@@ -311,6 +368,8 @@ export default function Dashboard() {
           USGS stations: {gaugeStations.length}
           <br />
           Gauge readings: {gaugeReadings.length}
+          <br />
+          Rescue teams: {teams.length}
         </p>
 
         <div className={styles.actions}>
@@ -329,6 +388,18 @@ export default function Dashboard() {
             }}
           >
             {busy ? "Loading…" : "Reload demo data"}
+          </button>
+
+          <button
+            type="button"
+            disabled={!isActive || !ready || busy}
+            onClick={() => {
+              void run("Seed Houston teams", (c) =>
+                c.reducers.seedHoustonRescueTeams(),
+              ).catch(() => {});
+            }}
+          >
+            Reseed Houston teams
           </button>
 
           <button
