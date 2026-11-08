@@ -36,7 +36,10 @@ import {
 // Import all reducer arg schemas
 import AddSosReducer from "./add_sos_reducer";
 import AdvanceSimulationReducer from "./advance_simulation_reducer";
+import AssignDispatchReducer from "./assign_dispatch_reducer";
+import CancelDispatchReducer from "./cancel_dispatch_reducer";
 import ClearFloodMarksReducer from "./clear_flood_marks_reducer";
+import CompleteDispatchReducer from "./complete_dispatch_reducer";
 import ConfirmDispatchReducer from "./confirm_dispatch_reducer";
 import CreateRescueRequestReducer from "./create_rescue_request_reducer";
 import CreateRescueTeamReducer from "./create_rescue_team_reducer";
@@ -44,11 +47,13 @@ import CreateSimulationReducer from "./create_simulation_reducer";
 import CreateSosReducer from "./create_sos_reducer";
 import ImportCsvDataReducer from "./import_csv_data_reducer";
 import RecommendDispatchReducer from "./recommend_dispatch_reducer";
+import RecommendDispatchForReducer from "./recommend_dispatch_for_reducer";
 import RecomputeThreatsReducer from "./recompute_threats_reducer";
 import ResetSimulationReducer from "./reset_simulation_reducer";
 import SeedFloodMarksReducer from "./seed_flood_marks_reducer";
 import SeedGaugeReadingsReducer from "./seed_gauge_readings_reducer";
 import SeedGaugeStationsReducer from "./seed_gauge_stations_reducer";
+import SeedHoustonRescueTeamsReducer from "./seed_houston_rescue_teams_reducer";
 import SeedStormTrackReducer from "./seed_storm_track_reducer";
 import SeekSimulationReducer from "./seek_simulation_reducer";
 import SetSimulationPlayingReducer from "./set_simulation_playing_reducer";
@@ -257,7 +262,10 @@ const tablesSchema = __schema({
 const reducersSchema = __reducers(
   __reducerSchema("add_sos", AddSosReducer),
   __reducerSchema("advance_simulation", AdvanceSimulationReducer),
+  __reducerSchema("assign_dispatch", AssignDispatchReducer),
+  __reducerSchema("cancel_dispatch", CancelDispatchReducer),
   __reducerSchema("clear_flood_marks", ClearFloodMarksReducer),
+  __reducerSchema("complete_dispatch", CompleteDispatchReducer),
   __reducerSchema("confirm_dispatch", ConfirmDispatchReducer),
   __reducerSchema("create_rescue_request", CreateRescueRequestReducer),
   __reducerSchema("create_rescue_team", CreateRescueTeamReducer),
@@ -265,11 +273,13 @@ const reducersSchema = __reducers(
   __reducerSchema("create_sos", CreateSosReducer),
   __reducerSchema("import_csv_data", ImportCsvDataReducer),
   __reducerSchema("recommend_dispatch", RecommendDispatchReducer),
+  __reducerSchema("recommend_dispatch_for", RecommendDispatchForReducer),
   __reducerSchema("recompute_threats", RecomputeThreatsReducer),
   __reducerSchema("reset_simulation", ResetSimulationReducer),
   __reducerSchema("seed_flood_marks", SeedFloodMarksReducer),
   __reducerSchema("seed_gauge_readings", SeedGaugeReadingsReducer),
   __reducerSchema("seed_gauge_stations", SeedGaugeStationsReducer),
+  __reducerSchema("seed_houston_rescue_teams", SeedHoustonRescueTeamsReducer),
   __reducerSchema("seed_storm_track", SeedStormTrackReducer),
   __reducerSchema("seek_simulation", SeekSimulationReducer),
   __reducerSchema("set_simulation_playing", SetSimulationPlayingReducer),

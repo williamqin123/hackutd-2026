@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import styles from "./SosList.module.css";
+
+const OPEN_STATUSES = new Set(["recommended", "confirmed", "en_route"]);
 
 function isCritical(request) {
   return request.medicalUrgent && request.stranded;
@@ -15,20 +17,76 @@ function milesBetween(a, b) {
   return (3958.8 * 2 * Math.asin(Math.sqrt(Math.min(1, h)))).toFixed(1);
 }
 
-export default function SosList({ requests, teams, assignments, ready, connected, onRecommend, onConfirm }) {
+function statusBadge(request) {
+  if (isCritical(request) && request.status === "pending") return "CRITICAL";
+  if (request.status === "recommended") return "RECOMMENDED";
+  if (request.status === "assigned") return "ASSIGNED";
+  return "PENDING";
+}
+
+function teamOptionLabel(team, request) {
+  const caps = [
+    team.hasBoat && "Boat",
+    team.hasMedical && "Medic",
+    `${milesBetween(request, team)} mi`,
+  ].filter(Boolean);
+  return `${team.name} · ${caps.join(" · ")}`;
+}
+
+export default function SosList({
+  requests,
+  teams,
+  assignments,
+  ready,
+  connected,
+  selectedId = null,
+  onSelectRequest,
+  onRecommend,
+  onRecommendFor,
+  onAssign,
+  onConfirm,
+  onCancel,
+  onComplete,
+}) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("all");
-  const [selectedId, setSelectedId] = useState(null);
   const [showAll, setShowAll] = useState(false);
   const [reviewId, setReviewId] = useState(null);
+  const [manualTeamByRequest, setManualTeamByRequest] = useState({});
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(null);
+  const selectedCardRef = useRef(null);
 
   useEffect(() => {
     setNow(Date.now());
     const timer = setInterval(() => setNow(Date.now()), 30000);
     return () => clearInterval(timer);
   }, []);
+
+  // Map selection should open the matching card even if it was collapsed/filtered.
+  useEffect(() => {
+    if (!selectedId) return;
+    const exists = requests.some((r) => String(r.id) === String(selectedId));
+    if (!exists) return;
+    setFilter("all");
+    setQuery("");
+    setShowAll(true);
+    setReviewId(null);
+  }, [selectedId, requests]);
+
+  useEffect(() => {
+    if (!selectedId || !selectedCardRef.current) return;
+    selectedCardRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [selectedId, showAll, filter, query]);
+
+  const openAssignmentByRequest = useMemo(() => {
+    const map = new Map();
+    for (const assignment of assignments) {
+      if (!OPEN_STATUSES.has(assignment.status)) continue;
+      map.set(String(assignment.requestId), assignment);
+    }
+    return map;
+  }, [assignments]);
 
   const criticalCount = requests.filter(isCritical).length;
   const unassignedCount = requests.filter((r) => r.status === "pending").length;
@@ -38,10 +96,15 @@ export default function SosList({ requests, teams, assignments, ready, connected
     return matchesFilter && searchable.includes(query.trim().toLowerCase());
   });
   const visible = showAll ? filtered : filtered.slice(0, 3);
-  const selected = visible.find((r) => String(r.id) === selectedId) ?? visible[0];
-  const hasPending = requests.some((r) => r.status === "pending" && !assignments.some(
-    (a) => a.requestId === r.id && ["recommended", "confirmed", "en_route"].includes(a.status),
-  ));
+  const selected = filtered.find((r) => String(r.id) === String(selectedId))
+    ?? visible.find((r) => String(r.id) === String(selectedId))
+    ?? null;
+  const hasPending = requests.some((r) => r.status === "pending" && !openAssignmentByRequest.has(String(r.id)));
+
+  function selectRequest(id) {
+    onSelectRequest?.(id == null ? null : String(id));
+    setReviewId(null);
+  }
 
   async function perform(action) {
     setBusy(true);
@@ -55,7 +118,7 @@ export default function SosList({ requests, teams, assignments, ready, connected
         <h2>SOS requests</h2>
         <span className={styles.total}>{ready ? requests.length : "—"} total</span>
       </div>
-      <p className={styles.subtitle}>Incoming requests awaiting a coordinated response</p>
+      <p className={styles.subtitle}>Manual assign or auto-recommend, then confirm and complete</p>
       <input
         className={styles.search}
         type="search"
@@ -77,18 +140,38 @@ export default function SosList({ requests, teams, assignments, ready, connected
         {!ready ? <p className={styles.empty}>Loading requests…</p> : visible.length === 0 ? (
           <p className={styles.empty}>{requests.length ? "No requests match your search or filter." : "No open SOS requests."}</p>
         ) : visible.map((request) => {
-          const active = selected?.id === request.id;
-          const assignment = assignments.find((a) => a.requestId === request.id && a.status === "recommended");
+          const active = selected && String(selected.id) === String(request.id);
+          const assignment = openAssignmentByRequest.get(String(request.id));
           const team = assignment && teams.find((t) => t.id === assignment.teamId);
           const wait = now === null ? "—" : `${Math.max(0, Math.floor((now - Number(request.createdAt.microsSinceUnixEpoch / 1000n)) / 60000))} min`;
           const critical = isCritical(request);
+          const availableTeams = teams
+            .filter((t) => t.status === "available")
+            .slice()
+            .sort((a, b) => Number(milesBetween(request, a)) - Number(milesBetween(request, b)));
+          const selectedTeamId = manualTeamByRequest[String(request.id)] ?? (availableTeams[0] ? String(availableTeams[0].id) : "");
+          const canManualAssign = request.status === "pending" && !assignment && availableTeams.length > 0;
+          const canRecommendFor = request.status === "pending" && !assignment;
+          const canConfirm = assignment?.status === "recommended" && team;
+          const canCancel = assignment?.status === "recommended";
+          const canComplete = assignment && (assignment.status === "confirmed" || assignment.status === "en_route");
+          const noTeamReason = request.status === "pending" && !assignment && availableTeams.length === 0
+            ? "All rescue teams are currently busy."
+            : null;
+
           return (
-            <article key={String(request.id)} className={`${styles.request} ${active ? styles.selected : ""}`}>
+            <article
+              key={String(request.id)}
+              ref={active ? selectedCardRef : null}
+              className={`${styles.request} ${active ? styles.selected : ""}`}
+            >
               <button className={styles.select} type="button" aria-expanded={active}
-                onClick={() => { setSelectedId(String(request.id)); setReviewId(null); }}>
+                onClick={() => selectRequest(request.id)}>
                 <div className={styles.requestTop}>
                   <strong>SOS #{String(request.id)}</strong>
-                  <span className={critical ? styles.criticalBadge : styles.badge}>{critical ? "CRITICAL" : request.status === "recommended" ? "RECOMMENDED" : "PENDING"}</span>
+                  <span className={critical && request.status === "pending" ? styles.criticalBadge : styles.badge}>
+                    {statusBadge(request)}
+                  </span>
                 </div>
                 <p className={styles.description}>{request.description}</p>
                 <p className={styles.meta}>{request.peopleCount} {request.peopleCount === 1 ? "person" : "people"} / Waiting {wait}</p>
@@ -97,14 +180,57 @@ export default function SosList({ requests, teams, assignments, ready, connected
                 <div className={styles.details}>
                   <p className={styles.meta}>{request.lat.toFixed(4)}, {request.lon.toFixed(4)}</p>
                   <div className={styles.recommendation}>
-                    {team ? <>
+                    {canManualAssign && (
+                      <div className={styles.assignBlock}>
+                        <label className={styles.assignLabel} htmlFor={`team-${String(request.id)}`}>
+                          Assign team
+                        </label>
+                        <select
+                          id={`team-${String(request.id)}`}
+                          className={styles.teamSelect}
+                          value={selectedTeamId}
+                          onChange={(e) => setManualTeamByRequest((prev) => ({
+                            ...prev,
+                            [String(request.id)]: e.target.value,
+                          }))}
+                        >
+                          {availableTeams.map((t) => (
+                            <option key={String(t.id)} value={String(t.id)}>
+                              {teamOptionLabel(t, request)}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          className={styles.primary}
+                          type="button"
+                          disabled={!connected || busy || !selectedTeamId}
+                          onClick={() => perform(() => onAssign(request.id, BigInt(selectedTeamId)))}
+                        >
+                          {busy ? "Assigning…" : "Assign selected team"}
+                        </button>
+                        <button
+                          className={styles.secondary}
+                          type="button"
+                          disabled={!connected || busy || !canRecommendFor}
+                          onClick={() => perform(() => onRecommendFor(request.id))}
+                        >
+                          Auto-recommend for this SOS
+                        </button>
+                      </div>
+                    )}
+
+                    {noTeamReason && (
+                      <p className={styles.meta}>{noTeamReason}</p>
+                    )}
+
+                    {team && assignment?.status === "recommended" ? <>
                       <p className={styles.suggested}>Suggested: {team.name}</p>
                       <p className={styles.meta}>
                         {[team.hasBoat && "Boat", team.hasMedical && "Medic"].filter(Boolean).join(" + ") || "Rescue team"} / {milesBetween(request, team)} mi straight-line
                       </p>
                       {reviewId === String(assignment.id) ? <>
                         <p className={styles.meta}>Confirm {team.name} for SOS #{String(request.id)} ({request.peopleCount} people)?</p>
-                        <button className={styles.primary} type="button" disabled={!connected || busy || team.status !== "available"}
+                        <button className={styles.primary} type="button" disabled={!connected || busy || team.status !== "available" || !canConfirm}
                           onClick={() => perform(() => onConfirm(assignment.id))}>
                           {busy ? "Dispatching…" : "Confirm dispatch"}
                         </button>
@@ -113,7 +239,36 @@ export default function SosList({ requests, teams, assignments, ready, connected
                         <button className={styles.primary} type="button" disabled={!connected || busy}
                           onClick={() => setReviewId(String(assignment.id))}>Review request & dispatch team</button>
                       )}
-                    </> : <p className={styles.meta}>No team recommendation yet for this request.</p>}
+                      {canCancel && (
+                        <button
+                          className={styles.cancel}
+                          type="button"
+                          disabled={!connected || busy}
+                          onClick={() => perform(() => onCancel(assignment.id))}
+                        >
+                          Cancel recommendation
+                        </button>
+                      )}
+                    </> : null}
+
+                    {team && canComplete ? <>
+                      <p className={styles.suggested}>Dispatched: {team.name}</p>
+                      <p className={styles.meta}>
+                        Team is busy on this SOS. Complete when the rescue is done.
+                      </p>
+                      <button
+                        className={styles.primary}
+                        type="button"
+                        disabled={!connected || busy}
+                        onClick={() => perform(() => onComplete(assignment.id))}
+                      >
+                        {busy ? "Completing…" : "Complete rescue"}
+                      </button>
+                    </> : null}
+
+                    {!team && request.status !== "pending" && (
+                      <p className={styles.meta}>No open assignment found for this request.</p>
+                    )}
                   </div>
                 </div>
               )}

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import styles from "./SummaryCards.module.css";
 
-export default function SummaryCards({ requests, teams, requestsReady, teamsReady, shelters, sheltersReady, sheltersError }) {
+export default function SummaryCards({ requests, teams, requestsReady, teamsReady }) {
   const [now, setNow] = useState(null);
 
   useEffect(() => {
@@ -11,8 +11,6 @@ export default function SummaryCards({ requests, teams, requestsReady, teamsRead
     const timer = setInterval(() => setNow(Date.now()), 30000);
     return () => clearInterval(timer);
   }, []);
-
-  const shelterSpaces = shelters.reduce((total, shelter) => total + shelter.capacity - shelter.occupied, 0);
 
   const critical = requests.filter(
     (request) => request.medicalUrgent && request.stranded,
@@ -61,14 +59,6 @@ export default function SummaryCards({ requests, teams, requestsReady, teamsRead
                 ? "Boat + medic available"
                 : "No boat + medic team available"}
           </p>
-        </div>
-      </article>
-
-      <article className={`${styles.card} ${styles.shelters}`}>
-        <h2>Shelter spaces</h2>
-        <div className={styles.content}>
-          <p className={styles.value}>{sheltersReady ? shelterSpaces : "—"}</p>
-          <p className={styles.description}>{sheltersError || (!sheltersReady ? "Loading shelters…" : `Open spaces across ${shelters.length} shelters`)}</p>
         </div>
       </article>
     </section>
