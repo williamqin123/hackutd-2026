@@ -7,3 +7,6 @@ dist
 .DS_Store
 
 spacetime.local.json
+.env*
+!.env.example
+.spacetime/

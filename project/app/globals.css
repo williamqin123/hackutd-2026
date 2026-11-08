@@ -1,28 +1,16 @@
-* {
-  box-sizing: border-box;
-  padding: 0;
-  margin: 0;
-}
-
-html,
-body {
-  max-width: 100vw;
-  overflow-x: hidden;
-}
-
-body {
-  color: #333;
-  background: #fafafa;
-}
-
-a {
-  color: inherit;
-  text-decoration: none;
-}
-
-@media (prefers-color-scheme: dark) {
-  body {
-    color: #eee;
-    background: #111;
-  }
-}
+* { box-sizing: border-box; }
+body { margin: 0; color: #222; background: white; font-family: system-ui, sans-serif; line-height: 1.5; }
+main { max-width: 1200px; margin: 0 auto; padding: 24px; }
+h1 { font-size: 1.6rem; } h2 { font-size: 1.2rem; }
+section, fieldset, details { margin: 20px 0; }
+label { display: block; margin: 10px 0; }
+input { display: block; padding: 6px; width: min(100%, 360px); }
+button { padding: 6px 12px; margin: 4px 8px 4px 0; cursor: pointer; }
+button:disabled { cursor: default; }
+.table-scroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+caption { text-align: left; font-weight: bold; }
+th, td { padding: 8px; border: 1px solid #ccc; text-align: left; }
+.flood-map { height: 360px; border: 1px solid #ccc; }
+[role="alert"] { color: #a00; overflow-wrap: anywhere; }
+dt { font-weight: bold; } dd { margin: 0 0 12px; }

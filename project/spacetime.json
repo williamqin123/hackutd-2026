@@ -1,8 +1,5 @@
 {
-  "dev": {
-    "run": "npm run dev"
-  },
-  "module-path": "./spacetimedb",
-  "database": "hackutd-2026-t3uux",
-  "server": "maincloud"
+  "database": "flood-db",
+  "server": "http://127.0.0.1:3001",
+  "js-path": "./spacetimedb/dist/module.js"
 }
