@@ -1,9 +1,12 @@
-import { Providers } from './providers';
-import './globals.css';
+import { Providers } from "./providers";
+import "./globals.css";
 
 export const metadata = {
-  title: 'WaterBoard',
-  description: 'Historical flood-response simulation and dispatch coordination',
+  title: "WaterBoard",
+  description: "Historical flood-response simulation and dispatch coordination",
+  icons: {
+    icon: "/favicon.png",
+  },
 };
 
 export default function RootLayout({ children }) {
