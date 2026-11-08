@@ -175,12 +175,14 @@ Loaded with `next/dynamic(..., { ssr: false })` from `page.js` because Leaflet n
 
 `app/providers.js` builds the Spacetime connection:
 
-- Host: `NEXT_PUBLIC_SPACETIMEDB_HOST` (http/https auto-converted to ws/wss)
-- DB: `NEXT_PUBLIC_SPACETIMEDB_DB_NAME` (local default `waterboard`)
+- Host: `NEXT_PUBLIC_SPACETIMEDB_HOST` (http/https auto-converted to ws/wss; default `wss://maincloud.spacetimedb.com`)
+- DB: `NEXT_PUBLIC_SPACETIMEDB_DB_NAME` (default `hackutd-2026-t3uux`)
 
 Local overrides go in **`.env.local`** (gitignored). Shared examples are in **`.env.example`**.
 
 Restart `npm run dev` after changing env files.
+For local SpacetimeDB, set both variables to the local values in `.env.example`.
+Production changes to these public variables require a rebuild and redeploy.
 
 ---
 

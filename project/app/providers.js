@@ -9,17 +9,18 @@ import { DbConnection } from '../src/module_bindings';
 // http-style SpacetimeDB host.
 function toWsUri(raw) {
   const value = (raw ?? '').trim().replace(/\/+$/, '');
-  if (!value) return 'ws://127.0.0.1:3000';
+  if (!value) return 'wss://maincloud.spacetimedb.com';
   if (value.startsWith('https://')) return `wss://${value.slice('https://'.length)}`;
   if (value.startsWith('http://')) return `ws://${value.slice('http://'.length)}`;
   if (value.startsWith('ws://') || value.startsWith('wss://')) return value;
   return `ws://${value}`;
 }
 
-// Local WaterBoard DB (see project/spacetime.json). Override with env if needed.
-const HOST = toWsUri(process.env.NEXT_PUBLIC_SPACETIMEDB_HOST ?? 'ws://127.0.0.1:3000');
+// Use the shared database when build-time env vars are absent. Loopback would
+// point to the visitor's own device; local development must opt in via env.
+const HOST = toWsUri(process.env.NEXT_PUBLIC_SPACETIMEDB_HOST);
 const DB_NAME =
-  process.env.NEXT_PUBLIC_SPACETIMEDB_DB_NAME ?? 'waterboard';
+  process.env.NEXT_PUBLIC_SPACETIMEDB_DB_NAME?.trim() || 'hackutd-2026-t3uux';
 const TOKEN_KEY = `${HOST}/${DB_NAME}/auth_token`;
 
 const onConnect = (_conn, identity, token) => {

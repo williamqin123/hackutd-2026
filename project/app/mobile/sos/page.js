@@ -1,119 +1,119 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useCallback } from 'react';
-import { useSpacetimeDB, useTable } from 'spacetimedb/react';
-import { tables } from '../../../src/module_bindings';
-import '../sos.css';
+import { useState, useEffect, useCallback } from "react";
+import { useSpacetimeDB, useTable } from "spacetimedb/react";
+import { tables } from "../../../src/module_bindings";
+import "../sos.css";
 
 // Diverse curated locations across Harris County (flood areas during Hurricane Harvey)
 const HARRIS_COUNTY_LOCATIONS = [
   {
-    name: 'Meyerland (Brays Bayou)',
-    address: '4920 S Braeswood Blvd, Meyerland, Harris County, TX',
+    name: "Meyerland (Brays Bayou)",
+    address: "4920 S Braeswood Blvd, Meyerland, Harris County, TX",
     lat: 29.6741,
     lon: -95.4678,
   },
   {
-    name: 'Cypress Creek',
-    address: '11900 Huffmeister Rd, Cypress, Harris County, TX',
+    name: "Cypress Creek",
+    address: "11900 Huffmeister Rd, Cypress, Harris County, TX",
     lat: 29.9691,
     lon: -95.6972,
   },
   {
-    name: 'Greenspoint (Greens Bayou)',
-    address: '12250 Greenspoint Dr, Greenspoint, Harris County, TX',
+    name: "Greenspoint (Greens Bayou)",
+    address: "12250 Greenspoint Dr, Greenspoint, Harris County, TX",
     lat: 29.9167,
     lon: -95.4089,
   },
   {
-    name: 'Kingwood (San Jacinto River)',
-    address: '2800 Kingwood Dr, Kingwood, Harris County, TX',
+    name: "Kingwood (San Jacinto River)",
+    address: "2800 Kingwood Dr, Kingwood, Harris County, TX",
     lat: 30.0505,
     lon: -95.1847,
   },
   {
-    name: 'Memorial / Buffalo Bayou',
-    address: '9400 Memorial Dr, Memorial, Harris County, TX',
+    name: "Memorial / Buffalo Bayou",
+    address: "9400 Memorial Dr, Memorial, Harris County, TX",
     lat: 29.7628,
     lon: -95.5342,
   },
   {
-    name: 'The Heights (White Oak Bayou)',
-    address: '1200 Heights Blvd, The Heights, Harris County, TX',
+    name: "The Heights (White Oak Bayou)",
+    address: "1200 Heights Blvd, The Heights, Harris County, TX",
     lat: 29.7997,
     lon: -95.3982,
   },
   {
-    name: 'Addicks Reservoir Area',
-    address: '19800 Park Row Dr, Katy, Harris County, TX',
+    name: "Addicks Reservoir Area",
+    address: "19800 Park Row Dr, Katy, Harris County, TX",
     lat: 29.7858,
     lon: -95.7725,
   },
   {
-    name: 'Bellaire / Brays Bayou',
-    address: '5100 Bellaire Blvd, Bellaire, Harris County, TX',
+    name: "Bellaire / Brays Bayou",
+    address: "5100 Bellaire Blvd, Bellaire, Harris County, TX",
     lat: 29.7058,
     lon: -95.4588,
   },
   {
-    name: 'Spring Branch',
-    address: '8200 Long Point Rd, Spring Branch, Harris County, TX',
+    name: "Spring Branch",
+    address: "8200 Long Point Rd, Spring Branch, Harris County, TX",
     lat: 29.8055,
     lon: -95.5133,
   },
   {
-    name: 'Pasadena (Armand Bayou)',
-    address: '3400 Fairmont Pkwy, Pasadena, Harris County, TX',
+    name: "Pasadena (Armand Bayou)",
+    address: "3400 Fairmont Pkwy, Pasadena, Harris County, TX",
     lat: 29.6911,
     lon: -95.2091,
   },
   {
-    name: 'Baytown (Cedar Bayou)',
-    address: '1600 Garth Rd, Baytown, Harris County, TX',
+    name: "Baytown (Cedar Bayou)",
+    address: "1600 Garth Rd, Baytown, Harris County, TX",
     lat: 29.7355,
     lon: -94.9774,
   },
   {
-    name: 'Humble (Lake Houston)',
-    address: '19500 US-59, Humble, Harris County, TX',
+    name: "Humble (Lake Houston)",
+    address: "19500 US-59, Humble, Harris County, TX",
     lat: 29.9988,
     lon: -95.2622,
   },
   {
-    name: 'Aldine (Halls Bayou)',
-    address: '11100 Airline Dr, Aldine, Harris County, TX',
+    name: "Aldine (Halls Bayou)",
+    address: "11100 Airline Dr, Aldine, Harris County, TX",
     lat: 29.9016,
     lon: -95.3783,
   },
   {
-    name: 'Kashmere Gardens (Hunting Bayou)',
-    address: '4100 Lockwood Dr, Kashmere Gardens, Harris County, TX',
-    lat: 29.8030,
-    lon: -95.3250,
+    name: "Kashmere Gardens (Hunting Bayou)",
+    address: "4100 Lockwood Dr, Kashmere Gardens, Harris County, TX",
+    lat: 29.803,
+    lon: -95.325,
   },
   {
-    name: 'Sunnyside (Sims Bayou)',
-    address: '4500 Reed Rd, Sunnyside, Harris County, TX',
+    name: "Sunnyside (Sims Bayou)",
+    address: "4500 Reed Rd, Sunnyside, Harris County, TX",
     lat: 29.6631,
     lon: -95.3683,
   },
   {
-    name: 'Clear Lake / NASA Area',
-    address: '18100 Upper Bay Rd, Clear Lake, Harris County, TX',
+    name: "Clear Lake / NASA Area",
+    address: "18100 Upper Bay Rd, Clear Lake, Harris County, TX",
     lat: 29.5544,
     lon: -95.1219,
   },
   {
-    name: 'Tomball (Spring Creek)',
-    address: '600 W Main St, Tomball, Harris County, TX',
+    name: "Tomball (Spring Creek)",
+    address: "600 W Main St, Tomball, Harris County, TX",
     lat: 30.0972,
     lon: -95.6161,
   },
   {
-    name: 'Barker Reservoir Area',
-    address: '1500 Barker Cypress Rd, Harris County, TX',
-    lat: 29.7780,
-    lon: -95.6880,
+    name: "Barker Reservoir Area",
+    address: "1500 Barker Cypress Rd, Harris County, TX",
+    lat: 29.778,
+    lon: -95.688,
   },
 ];
 
@@ -133,9 +133,6 @@ function getRandomHarrisCountyLocation() {
   };
 }
 
-const DEFAULT_LOC = HARRIS_COUNTY_LOCATIONS[0];
-const DEFAULT_LABEL = `${DEFAULT_LOC.address} (${DEFAULT_LOC.lat.toFixed(5)}, ${DEFAULT_LOC.lon.toFixed(5)})`;
-
 export default function MobileSosPage() {
   const { isActive, getConnection } = useSpacetimeDB();
 
@@ -143,19 +140,23 @@ export default function MobileSosPage() {
   const [sosRecords] = useTable(tables.sos);
   const [rescueRequests] = useTable(tables.rescueRequest);
 
-  // Fixed SSR-safe default — randomize only after mount (avoids hydration mismatch).
-  const [location, setLocation] = useState(DEFAULT_LABEL);
-  const [coords, setCoords] = useState({ lat: DEFAULT_LOC.lat, lon: DEFAULT_LOC.lon });
-  const [activeAreaName, setActiveAreaName] = useState(DEFAULT_LOC.name);
+  // Initialize with a random location in Harris County
+  const [randomInit] = useState(() => getRandomHarrisCountyLocation());
+  const [location, setLocation] = useState(randomInit.label);
+  const [coords, setCoords] = useState({
+    lat: randomInit.lat,
+    lon: randomInit.lon,
+  });
+  const [activeAreaName, setActiveAreaName] = useState(randomInit.name);
 
   // Geolocation states
-  const [geoStatus, setGeoStatus] = useState('idle'); // 'idle' | 'locating' | 'success' | 'error' | 'harris'
-  const [geoErrorMsg, setGeoErrorMsg] = useState('');
+  const [geoStatus, setGeoStatus] = useState("idle"); // 'idle' | 'locating' | 'success' | 'error' | 'harris'
+  const [geoErrorMsg, setGeoErrorMsg] = useState("");
   const [geoAccuracy, setGeoAccuracy] = useState(null);
 
   // Dialog & SOS submit states
   const [showDialog, setShowDialog] = useState(false);
-  const [sosText, setSosText] = useState('');
+  const [sosText, setSosText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [lastSubmission, setLastSubmission] = useState(null);
@@ -163,20 +164,20 @@ export default function MobileSosPage() {
 
   // Quick emergency tags
   const quickTags = [
-    '🌊 Rising Floodwater',
-    '🏠 Trapped on Roof',
-    '🏥 Medical Emergency',
-    '👶 Elderly / Infant Present',
-    '🚤 Need Boat Evacuation',
-    '⚡ Power Outage',
+    "🌊 Rising Floodwater",
+    "🏠 Trapped on Roof",
+    "🏥 Medical Emergency",
+    "👶 Elderly / Infant Present",
+    "🚤 Need Boat Evacuation",
+    "⚡ Power Outage",
   ];
 
   // Ensure body and html background fill screen edge-to-edge on wide desktop viewports
   useEffect(() => {
     const prevBodyBg = document.body.style.backgroundColor;
     const prevHtmlBg = document.documentElement.style.backgroundColor;
-    document.body.style.backgroundColor = '#450a0a';
-    document.documentElement.style.backgroundColor = '#450a0a';
+    document.body.style.backgroundColor = "#450a0a";
+    document.documentElement.style.backgroundColor = "#450a0a";
     return () => {
       document.body.style.backgroundColor = prevBodyBg;
       document.documentElement.style.backgroundColor = prevHtmlBg;
@@ -189,14 +190,10 @@ export default function MobileSosPage() {
     setLocation(nextLoc.label);
     setCoords({ lat: nextLoc.lat, lon: nextLoc.lon });
     setActiveAreaName(nextLoc.name);
-    setGeoStatus('harris');
-    setGeoErrorMsg('');
+    setGeoStatus("harris");
+    setGeoErrorMsg("");
     setGeoAccuracy(null);
   }, []);
-
-  useEffect(() => {
-    handleShuffleHarrisLocation();
-  }, [handleShuffleHarrisLocation]);
 
   // Update coords if user manually types coordinates into the input
   const handleLocationInputChange = (newVal) => {
@@ -213,14 +210,14 @@ export default function MobileSosPage() {
 
   // Device GPS Geolocation trigger
   const handleUseGeolocation = useCallback(() => {
-    if (typeof window === 'undefined' || !navigator.geolocation) {
-      setGeoStatus('error');
-      setGeoErrorMsg('Geolocation is not supported by your browser.');
+    if (typeof window === "undefined" || !navigator.geolocation) {
+      setGeoStatus("error");
+      setGeoErrorMsg("Geolocation is not supported by your browser.");
       return;
     }
 
-    setGeoStatus('locating');
-    setGeoErrorMsg('');
+    setGeoStatus("locating");
+    setGeoErrorMsg("");
 
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
@@ -229,7 +226,7 @@ export default function MobileSosPage() {
         const lon = Number(longitude.toFixed(5));
         setCoords({ lat, lon });
         setGeoAccuracy(Math.round(accuracy));
-        setActiveAreaName('Current Device GPS');
+        setActiveAreaName("Current Device GPS");
 
         const coordString = `${lat}, ${lon}`;
 
@@ -238,7 +235,7 @@ export default function MobileSosPage() {
           const timeoutId = setTimeout(() => controller.abort(), 2800);
           const res = await fetch(
             `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
-            { signal: controller.signal }
+            { signal: controller.signal },
           );
           clearTimeout(timeoutId);
           if (res.ok) {
@@ -247,15 +244,23 @@ export default function MobileSosPage() {
             if (data.address) {
               if (data.address.road) addressParts.push(data.address.road);
               if (data.address.neighbourhood || data.address.suburb) {
-                addressParts.push(data.address.neighbourhood || data.address.suburb);
+                addressParts.push(
+                  data.address.neighbourhood || data.address.suburb,
+                );
               }
-              if (data.address.city || data.address.town || data.address.county) {
-                addressParts.push(data.address.city || data.address.town || data.address.county);
+              if (
+                data.address.city ||
+                data.address.town ||
+                data.address.county
+              ) {
+                addressParts.push(
+                  data.address.city || data.address.town || data.address.county,
+                );
               }
               if (data.address.state) addressParts.push(data.address.state);
             }
             if (addressParts.length > 0) {
-              setLocation(`${addressParts.join(', ')} (${coordString})`);
+              setLocation(`${addressParts.join(", ")} (${coordString})`);
             } else if (data.display_name) {
               setLocation(`${data.display_name.slice(0, 75)} (${coordString})`);
             } else {
@@ -268,21 +273,22 @@ export default function MobileSosPage() {
           setLocation(`Device Location (${coordString})`);
         }
 
-        setGeoStatus('success');
+        setGeoStatus("success");
       },
       (err) => {
-        setGeoStatus('error');
-        let msg = 'Unable to determine GPS location.';
-        if (err.code === 1) msg = 'Location permission denied. Please enter your address.';
-        else if (err.code === 2) msg = 'Position unavailable.';
-        else if (err.code === 3) msg = 'Location request timed out.';
+        setGeoStatus("error");
+        let msg = "Unable to determine GPS location.";
+        if (err.code === 1)
+          msg = "Location permission denied. Please enter your address.";
+        else if (err.code === 2) msg = "Position unavailable.";
+        else if (err.code === 3) msg = "Location request timed out.";
         setGeoErrorMsg(msg);
       },
       {
         enableHighAccuracy: true,
         timeout: 10000,
         maximumAge: 0,
-      }
+      },
     );
   }, []);
 
@@ -295,19 +301,28 @@ export default function MobileSosPage() {
     });
   };
 
-  // Submit SOS: Gemini (or heuristic) → flags, then createRescueRequest + addSos
+  // Submit SOS: explicitly calls both createRescueRequest AND addSos
   const handleSubmitSos = async (e) => {
     if (e) e.preventDefault();
     setIsSubmitting(true);
     setSubmitError(null);
 
-    const targetLocation = location.trim() || 'Harris County, Texas';
-    const targetText = sosText.trim() || 'Emergency SOS distress broadcast';
+    const targetLocation = location.trim() || "Harris County, Texas";
+    const targetText = sosText.trim() || "Emergency SOS distress broadcast";
     const nowTimestamp = new Date();
 
-    let isMedical = /medic|doctor|injur|oxygen|hospital|sick|ambulance/i.test(targetText);
-    let isStranded = /strand|trap|roof|attic|water rising|stuck|second floor/i.test(targetText);
-    let isTransport = /boat|evac|transport|rescue team/i.test(targetText);
+    // Parse urgency flags from description
+    const isMedical = /medic|doctor|injur|oxygen|hospital|sick|ambulance/i.test(
+      targetText,
+    );
+    const isStranded =
+      /strand|trap|roof|attic|water rising|stuck|second floor/i.test(
+        targetText,
+      ) || true;
+    const isTransport =
+      /boat|evac|transport|rescue team/i.test(targetText) || true;
+
+    // Detect people count
     let peopleCount = 1;
     const peopleMatch = targetText.match(
       /(\d+)\s*(?:people|persons|adults|kids|children|family members)/i,
@@ -316,32 +331,13 @@ export default function MobileSosPage() {
       const p = parseInt(peopleMatch[1], 10);
       if (!isNaN(p) && p >= 1 && p <= 50) peopleCount = p;
     }
-    let flagSource = 'heuristic';
-
-    try {
-      const analyzeRes = await fetch('/api/analyze-sos', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: targetText, tags: [] }),
-      });
-      if (analyzeRes.ok) {
-        const flags = await analyzeRes.json();
-        isMedical = Boolean(flags.medicalUrgent);
-        isStranded = Boolean(flags.stranded);
-        isTransport = Boolean(flags.needsTransport);
-        if (typeof flags.peopleCount === 'number' && flags.peopleCount >= 1) {
-          peopleCount = Math.min(50, Math.floor(flags.peopleCount));
-        }
-        flagSource = flags.source || 'gemini';
-      }
-    } catch (analyzeErr) {
-      console.warn('analyze-sos fallback to local heuristics', analyzeErr);
-    }
 
     try {
       const conn = getConnection();
-      if (!conn) {
-        throw new Error('Waiting for connection to SpacetimeDB… please check your connection and try again.');
+      if (!conn || !isActive) {
+        throw new Error(
+          "Waiting for connection to SpacetimeDB… please check your connection and try again.",
+        );
       }
 
       // 1. Explicitly invoke createRescueRequest reducer to create the rescue_request record
@@ -377,15 +373,12 @@ export default function MobileSosPage() {
         lon: coords.lon,
         peopleCount,
         medicalUrgent: isMedical,
-        stranded: isStranded,
-        needsTransport: isTransport,
-        flagSource,
         timestamp: nowTimestamp.toLocaleString(),
       });
       setSubmitSuccess(true);
     } catch (err) {
-      console.error('Failed to submit SOS:', err);
-      setSubmitError(err?.message || 'Failed to transmit SOS to SpacetimeDB.');
+      console.error("Failed to submit SOS:", err);
+      setSubmitError(err?.message || "Failed to transmit SOS to SpacetimeDB.");
     } finally {
       setIsSubmitting(false);
     }
@@ -403,26 +396,23 @@ export default function MobileSosPage() {
       <header className="sos-header">
         <div className="sos-top-bar">
           <div className="sos-status-indicator">
-            <span className={`sos-status-dot ${isActive ? 'online' : 'connecting'}`} />
+            <span
+              className={`sos-status-dot ${isActive ? "online" : "connecting"}`}
+            />
             <span className="sos-status-label">
-              {isActive ? 'SPACETIMEDB ONLINE' : 'CONNECTING TO GRID…'}
+              {isActive ? "SPACETIMEDB ONLINE" : "CONNECTING TO GRID…"}
             </span>
           </div>
 
-          <span className="sos-grid-badge">
-            HARRIS COUNTY
-          </span>
+          <span className="sos-grid-badge">HARRIS COUNTY</span>
         </div>
 
-        <h1 className="sos-title">
-          Emergency Distress Beacon
-        </h1>
+        <h1 className="sos-title">Emergency Distress Beacon</h1>
         <p className="sos-subtitle">
           Direct link to The WaterBoard & Rescue Dispatch
         </p>
       </header>
 
-      {/* Geolocation Section */}
       <section className="sos-geo-section">
         <div className="sos-geo-header">
           <label htmlFor="geo-input" className="sos-geo-label">
@@ -443,7 +433,7 @@ export default function MobileSosPage() {
           </label>
 
           <span className="sos-geo-area-tag">
-            📍 {activeAreaName || 'Harris County'}
+            📍 {activeAreaName || "Harris County"}
           </span>
         </div>
 
@@ -463,11 +453,11 @@ export default function MobileSosPage() {
           <button
             type="button"
             onClick={handleUseGeolocation}
-            disabled={geoStatus === 'locating'}
+            disabled={geoStatus === "locating"}
             title="Detect device GPS location"
-            className={`sos-gps-btn ${geoStatus === 'locating' ? 'locating' : ''}`}
+            className={`sos-gps-btn ${geoStatus === "locating" ? "locating" : ""}`}
           >
-            {geoStatus === 'locating' ? (
+            {geoStatus === "locating" ? (
               <>
                 <svg
                   className="sos-radar-spinner"
@@ -478,7 +468,13 @@ export default function MobileSosPage() {
                   stroke="currentColor"
                   strokeWidth="2.5"
                 >
-                  <circle cx="12" cy="12" r="10" strokeDasharray="16" strokeDashoffset="4" />
+                  <circle
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    strokeDasharray="16"
+                    strokeDashoffset="4"
+                  />
                 </svg>
                 Locating…
               </>
@@ -510,8 +506,11 @@ export default function MobileSosPage() {
         {/* Harris County controls & status */}
         <div className="sos-geo-footer">
           <span className="sos-coords-label">
-            Coords: <strong>{coords.lat.toFixed(4)}, {coords.lon.toFixed(4)}</strong>
-            {geoAccuracy ? ` (±${geoAccuracy}m)` : ''}
+            Coords:{" "}
+            <strong>
+              {coords.lat.toFixed(4)}, {coords.lon.toFixed(4)}
+            </strong>
+            {geoAccuracy ? ` (±${geoAccuracy}m)` : ""}
           </span>
 
           <button
@@ -523,11 +522,7 @@ export default function MobileSosPage() {
           </button>
         </div>
 
-        {geoErrorMsg && (
-          <div className="sos-geo-error">
-            {geoErrorMsg}
-          </div>
-        )}
+        {geoErrorMsg && <div className="sos-geo-error">{geoErrorMsg}</div>}
       </section>
 
       {/* Giant SOS Button Area with concentric pulse rings */}
@@ -565,13 +560,9 @@ export default function MobileSosPage() {
             <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
           </svg>
 
-          <span className="sos-btn-text">
-            SOS
-          </span>
+          <span className="sos-btn-text">SOS</span>
 
-          <span className="sos-btn-subtext">
-            TAP TO TRANSMIT
-          </span>
+          <span className="sos-btn-subtext">TAP TO TRANSMIT</span>
         </button>
       </section>
 
@@ -582,7 +573,8 @@ export default function MobileSosPage() {
             ⚠️ Tap SOS button to transmit rescue coordinates & situation
           </p>
           <p className="sos-footer-desc">
-            Calls SpacetimeDB to create <strong>rescue_request</strong> & <strong>sos</strong> records.
+            Calls SpacetimeDB to create <strong>rescue_request</strong> &{" "}
+            <strong>sos</strong> records.
           </p>
         </div>
 
@@ -645,14 +637,9 @@ export default function MobileSosPage() {
                   <h2 id="dialog-title" className="sos-modal-title">
                     SOS Transmitted Successfully!
                   </h2>
-                  <p
-                    style={{
-                      fontSize: 13,
-                      color: 'rgba(255, 255, 255, 0.85)',
-                      margin: 0,
-                    }}
-                  >
-                    Created <strong>rescue_request</strong> record on The WaterBoard dispatch & saved to <strong>sos</strong> table.
+                  <p className="sos-modal-subtitle">
+                    Created <strong>rescue_request</strong> record on The
+                    WaterBoard dispatch & saved to <strong>sos</strong> table.
                   </p>
                 </div>
 
@@ -660,24 +647,38 @@ export default function MobileSosPage() {
                 {lastSubmission && (
                   <div className="sos-success-card">
                     <div>
-                      <span className="sos-success-row-label-green">✓ Rescue Request: </span>
-                      <span className="sos-success-row-value">Pending dispatch queue</span>
+                      <span className="sos-success-row-label-green">
+                        ✓ Rescue Request:{" "}
+                      </span>
+                      <span className="sos-success-row-value">
+                        Pending dispatch queue
+                      </span>
                     </div>
                     <div>
-                      <span className="sos-success-row-label">Coordinates: </span>
-                      <span className="sos-success-row-value">{lastSubmission.lat}, {lastSubmission.lon}</span>
+                      <span className="sos-success-row-label">
+                        Coordinates:{" "}
+                      </span>
+                      <span className="sos-success-row-value">
+                        {lastSubmission.lat}, {lastSubmission.lon}
+                      </span>
                     </div>
                     <div>
                       <span className="sos-success-row-label">Location: </span>
-                      <span className="sos-success-row-value">{lastSubmission.location}</span>
+                      <span className="sos-success-row-value">
+                        {lastSubmission.location}
+                      </span>
                     </div>
                     <div>
                       <span className="sos-success-row-label">Message: </span>
-                      <span className="sos-success-row-value">{lastSubmission.text}</span>
+                      <span className="sos-success-row-value">
+                        {lastSubmission.text}
+                      </span>
                     </div>
                     <div>
                       <span className="sos-success-row-label">Timestamp: </span>
-                      <span className="sos-success-row-value">{lastSubmission.timestamp}</span>
+                      <span className="sos-success-row-value">
+                        {lastSubmission.timestamp}
+                      </span>
                     </div>
                   </div>
                 )}
@@ -687,7 +688,7 @@ export default function MobileSosPage() {
                     type="button"
                     onClick={() => {
                       setSubmitSuccess(false);
-                      setSosText('');
+                      setSosText("");
                     }}
                     className="sos-send-another-btn"
                   >
@@ -734,13 +735,11 @@ export default function MobileSosPage() {
                     <path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z" />
                     <circle cx="12" cy="10" r="3" />
                   </svg>
-                  <div style={{ flex: 1, overflow: 'hidden' }}>
+                  <div style={{ flex: 1, overflow: "hidden" }}>
                     <div className="sos-loc-preview-title">
                       Transmitting From (Harris County)
                     </div>
-                    <div className="sos-loc-preview-value">
-                      {location}
-                    </div>
+                    <div className="sos-loc-preview-value">{location}</div>
                   </div>
                 </div>
 
@@ -765,7 +764,10 @@ export default function MobileSosPage() {
 
                 {/* Text Box for Emergency Message */}
                 <div className="sos-textarea-wrap">
-                  <label htmlFor="sos-text-input" className="sos-textarea-label">
+                  <label
+                    htmlFor="sos-text-input"
+                    className="sos-textarea-label"
+                  >
                     Situation Description & Needs:
                   </label>
                   <textarea
@@ -779,9 +781,7 @@ export default function MobileSosPage() {
                 </div>
 
                 {submitError && (
-                  <div className="sos-form-error">
-                    ⚠️ {submitError}
-                  </div>
+                  <div className="sos-form-error">⚠️ {submitError}</div>
                 )}
 
                 {/* Actions: Cancel & Submit Button */}
@@ -797,7 +797,7 @@ export default function MobileSosPage() {
 
                   <button
                     type="submit"
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || !isActive}
                     className="sos-submit-btn"
                   >
                     {isSubmitting ? (
@@ -811,7 +811,13 @@ export default function MobileSosPage() {
                           stroke="currentColor"
                           strokeWidth="3"
                         >
-                          <circle cx="12" cy="12" r="10" strokeDasharray="16" strokeDashoffset="4" />
+                          <circle
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            strokeDasharray="16"
+                            strokeDashoffset="4"
+                          />
                         </svg>
                         Transmitting…
                       </>
@@ -830,7 +836,7 @@ export default function MobileSosPage() {
                           <line x1="22" y1="2" x2="11" y2="13" />
                           <polygon points="22 2 15 22 11 13 2 9 22 2" />
                         </svg>
-                        Submit SOS
+                        {isActive ? "Submit SOS" : "Connecting…"}
                       </>
                     )}
                   </button>
