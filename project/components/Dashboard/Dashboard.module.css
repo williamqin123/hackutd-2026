@@ -154,3 +154,14 @@
     grid-template-columns: 1fr;
   }
 }
+
+.mapColumn {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+
+.mapColumn > .card {
+  min-width: 0;
+  margin: 0;
+}

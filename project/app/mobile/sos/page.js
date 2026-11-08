@@ -535,7 +535,7 @@ export default function MobileSosPage() {
             textAlign: 'center',
           }}
         >
-          Direct link to The WaterBoard & Rescue Dispatch
+          Direct link to WaterBoard & Rescue Dispatch
         </p>
       </header>
 
@@ -1070,7 +1070,7 @@ export default function MobileSosPage() {
                       margin: 0,
                     }}
                   >
-                    Created <strong>rescue_request</strong> record on The WaterBoard dispatch & saved to <strong>sos</strong> table.
+                    Created <strong>rescue_request</strong> record on WaterBoard dispatch & saved to <strong>sos</strong> table.
                   </p>
                 </div>
 

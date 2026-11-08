@@ -9,7 +9,7 @@ export default function DashboardHeader({ isConnected, isReady }) {
         </span>
 
         <div>
-          <p className={styles.name}>ResQAI</p>
+          <p className={styles.name}>WaterBoard</p>
           <p className={styles.subtitle}>Houston response center</p>
         </div>
       </div>

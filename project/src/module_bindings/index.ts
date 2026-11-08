@@ -42,6 +42,7 @@ import CreateRescueRequestReducer from "./create_rescue_request_reducer";
 import CreateRescueTeamReducer from "./create_rescue_team_reducer";
 import CreateSimulationReducer from "./create_simulation_reducer";
 import CreateSosReducer from "./create_sos_reducer";
+import ImportCsvDataReducer from "./import_csv_data_reducer";
 import RecommendDispatchReducer from "./recommend_dispatch_reducer";
 import RecomputeThreatsReducer from "./recompute_threats_reducer";
 import ResetSimulationReducer from "./reset_simulation_reducer";
@@ -64,6 +65,7 @@ import GaugeReadingRow from "./gauge_reading_table";
 import GaugeStationRow from "./gauge_station_table";
 import RescueRequestRow from "./rescue_request_table";
 import RescueTeamRow from "./rescue_team_table";
+import ShelterRow from "./shelter_table";
 import SimulationStateRow from "./simulation_state_table";
 import SiteThreatRow from "./site_threat_table";
 import SosRow from "./sos_table";
@@ -170,6 +172,17 @@ const tablesSchema = __schema({
       { name: 'rescue_team_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, RescueTeamRow),
+  shelter: __table({
+    name: 'shelter',
+    indexes: [
+      { accessor: 'id', name: 'shelter_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'shelter_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, ShelterRow),
   simulationState: __table({
     name: 'simulation_state',
     indexes: [
@@ -250,6 +263,7 @@ const reducersSchema = __reducers(
   __reducerSchema("create_rescue_team", CreateRescueTeamReducer),
   __reducerSchema("create_simulation", CreateSimulationReducer),
   __reducerSchema("create_sos", CreateSosReducer),
+  __reducerSchema("import_csv_data", ImportCsvDataReducer),
   __reducerSchema("recommend_dispatch", RecommendDispatchReducer),
   __reducerSchema("recompute_threats", RecomputeThreatsReducer),
   __reducerSchema("reset_simulation", ResetSimulationReducer),

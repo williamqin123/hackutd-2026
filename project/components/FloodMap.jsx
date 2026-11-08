@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import MapControls from "./MapControls";
 
 const LEVEL_COLORS = {
   none: "#94a3b8",
@@ -27,7 +28,7 @@ function microsToLabel(micros) {
 }
 
 /**
- * Live Houston flood map for The WaterBoard.
+ * Live Houston flood map for WaterBoard.
  * Layers: OSM basemap, storm track, gauge flood zones, active flood sites.
  */
 export default function FloodMap({
@@ -42,6 +43,28 @@ export default function FloodMap({
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const layersRef = useRef(null);
+  const [visibleLayers, setVisibleLayers] = useState({
+    teams: true,
+    sensors: true,
+    storm: true,
+  });
+  const requestLocations = requests
+    .filter((request) => Number.isFinite(request.lat) && Number.isFinite(request.lon)
+      && Math.abs(request.lat) <= 90 && Math.abs(request.lon) <= 180)
+    .map((request) => [request.lat, request.lon]);
+
+  function centerHouston() {
+    mapRef.current?.setView([29.76, -95.37], 10);
+  }
+
+  function showAllRequests() {
+    if (!requestLocations.length) return;
+    mapRef.current?.fitBounds(requestLocations, { padding: [40, 40], maxZoom: 13 });
+  }
+
+  function toggleLayer(key) {
+    setVisibleLayers((current) => ({ ...current, [key]: !current[key] }));
+  }
 
   const stormPath = useMemo(() => {
     if (!simTimeMicros) return [];
@@ -99,6 +122,7 @@ export default function FloodMap({
       track: L.layerGroup().addTo(map),
       marks: L.layerGroup().addTo(map),
       units: L.layerGroup().addTo(map),
+      teamUnits: L.layerGroup().addTo(map),
       labels: L.layerGroup().addTo(map),
     };
     mapRef.current = map;
@@ -118,11 +142,30 @@ export default function FloodMap({
     const layers = layersRef.current;
     if (!map || !layers) return;
 
+    const groups = {
+      teams: [layers.teamUnits],
+      sensors: [layers.floods, layers.regions, layers.marks, layers.labels],
+      storm: [layers.track],
+    };
+    for (const [key, layerGroups] of Object.entries(groups)) {
+      for (const group of layerGroups) {
+        if (visibleLayers[key]) group.addTo(map);
+        else map.removeLayer(group);
+      }
+    }
+  }, [visibleLayers]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    const layers = layersRef.current;
+    if (!map || !layers) return;
+
     layers.regions.clearLayers();
     layers.floods.clearLayers();
     layers.track.clearLayers();
     layers.marks.clearLayers();
     layers.units.clearLayers();
+    layers.teamUnits.clearLayers();
     layers.labels.clearLayers();
 
     // USGS gages: 4 imported sensors. Color follows live stage ratio — not hardcoded.
@@ -280,7 +323,7 @@ export default function FloodMap({
           }),
         )
         .bindPopup(`${team.name}<br/>${team.status}`, { autoPan: true })
-        .addTo(layers.units);
+        .addTo(layers.teamUnits);
     }
   }, [
     stormPath,
@@ -293,6 +336,7 @@ export default function FloodMap({
   ]);
 
   return (
+    <>
     <div className="waterboard-map-shell" style={{ position: "relative" }}>
       <style>{`
         .waterboard-map-shell .leaflet-container {
@@ -408,5 +452,13 @@ export default function FloodMap({
         </div>
       </div>
     </div>
+    <MapControls
+      onCenter={centerHouston}
+      onShowRequests={showAllRequests}
+      hasRequests={requestLocations.length > 0}
+      layers={visibleLayers}
+      onToggle={toggleLayer}
+    />
+    </>
   );
 }

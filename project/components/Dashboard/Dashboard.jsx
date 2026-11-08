@@ -15,6 +15,9 @@ import {
 import SimulationClock from "../SimulationClock";
 import ThreatSnapshot from "../ThreatSnapshot";
 import DashboardHeader from "./DashboardHeader";
+import SummaryCards from "./SummaryCards";
+import OperationsCards from "./OperationsCards";
+import SosList from "./SosList";
 import DeveloperPanel from "./DeveloperPanel";
 import styles from "./Dashboard.module.css";
 
@@ -31,6 +34,7 @@ export default function Dashboard() {
 
   const [simulations, simReady] = useTable(tables.simulationState);
   const [requests, reqReady] = useTable(tables.rescueRequest);
+  const [shelters, sheltersReady] = useTable(tables.shelter);
   const [teams, teamsReady] = useTable(tables.rescueTeam);
   const [assignments, assignReady] = useTable(tables.dispatchAssignment);
   const [events, eventsReady] = useTable(tables.activityEvent);
@@ -52,6 +56,7 @@ export default function Dashboard() {
   const ready =
     simReady &&
     reqReady &&
+    sheltersReady &&
     teamsReady &&
     assignReady &&
     eventsReady &&
@@ -192,23 +197,11 @@ export default function Dashboard() {
   }, [needsSeed, floodCsv.length, stormCsv.length, usgsPayload, busy]);
 
   function recommendDispatch() {
-    void run("Recommend dispatch", (c) =>
-      c.reducers.recommendDispatch(),
-    ).catch(() => {});
+    return run("Recommend dispatch", (c) => c.reducers.recommendDispatch());
   }
 
-  function confirmRecommendation() {
-    const assignment = assignments.find(
-      (item) => item.status === "recommended",
-    );
-
-    if (!assignment) return;
-
-    void run("Confirm dispatch", (c) =>
-      c.reducers.confirmDispatch({
-        assignmentId: assignment.id,
-      }),
-    ).catch(() => {});
+  function confirmRecommendation(assignmentId) {
+    return run("Confirm dispatch", (c) => c.reducers.confirmDispatch({ assignmentId }));
   }
 
   return (
@@ -237,113 +230,56 @@ export default function Dashboard() {
         </p>
       )}
 
+      <SummaryCards
+        shelters={shelters}
+        sheltersReady={sheltersReady}
+        requests={pendingSorted}
+        teams={teams}
+        requestsReady={reqReady}
+        teamsReady={teamsReady}
+      />
+
       <div className={styles.workspace}>
-        <section className={styles.card}>
-          <h2>Flood & rescue map</h2>
-          <p className={styles.muted}>
-            Flood conditions, rescue teams, and incoming SOS requests
-          </p>
+        <div className={styles.mapColumn}>
+          <section className={styles.card}>
+            <h2>Flood & rescue map</h2>
+            <p className={styles.muted}>
+              Flood conditions, rescue teams, and incoming SOS requests
+            </p>
 
-          <FloodMap
-            simTimeMicros={sim?.simTimeMicros}
-            stormPoints={stormPoints}
-            threatRegions={threatRegions}
-            siteThreats={siteThreats}
-            floodMarks={floodMarks}
-            requests={requests}
+            <FloodMap
+              simTimeMicros={sim?.simTimeMicros}
+              stormPoints={stormPoints}
+              threatRegions={threatRegions}
+              siteThreats={siteThreats}
+              floodMarks={floodMarks}
+              requests={requests}
+              teams={teams}
+            />
+
+
+          </section>
+
+          <OperationsCards
+            shelters={shelters}
+            sheltersReady={sheltersReady}
             teams={teams}
+            teamsReady={teamsReady}
+            events={recentEvents}
+            eventsReady={eventsReady}
           />
+        </div>
 
-
-        </section>
-
-        <section className={styles.card}>
-          <h2>SOS requests</h2>
-          <p className={styles.muted}>
-            Incoming requests, sorted by priority
-          </p>
-
-          <div className={styles.actions}>
-            <button
-              type="button"
-              disabled={!isActive || !ready}
-              onClick={recommendDispatch}
-            >
-              Recommend dispatch
-            </button>
-
-            <button
-              type="button"
-              disabled={
-                !isActive ||
-                !ready ||
-                !assignments.some(
-                  (item) => item.status === "recommended",
-                )
-              }
-              onClick={confirmRecommendation}
-            >
-              Confirm first recommendation
-            </button>
-          </div>
-
-          {!reqReady ? (
-            <p className={styles.muted}>Loading SOS requests…</p>
-          ) : pendingSorted.length === 0 ? (
-            <p className={styles.muted}>No open SOS requests.</p>
-          ) : (
-            <ul className={styles.list}>
-              {pendingSorted.map((request) => (
-                <li key={String(request.id)}>
-                  <strong>SOS #{String(request.id)}</strong>
-                  <p>{request.description}</p>
-                  <p className={styles.muted}>
-                    {request.peopleCount} people / {request.status} /
-                    Priority score: {request.priorityScore}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+        <SosList
+          requests={pendingSorted}
+          teams={teams}
+          assignments={assignments}
+          ready={reqReady && teamsReady && assignReady}
+          connected={isActive}
+          onRecommend={recommendDispatch}
+          onConfirm={confirmRecommendation}
+        />
       </div>
-
-      <section className={styles.card}>
-        <h2>Rescue teams</h2>
-
-        {!teamsReady ? (
-          <p className={styles.muted}>Loading teams…</p>
-        ) : teams.length === 0 ? (
-          <p className={styles.muted}>No rescue teams registered.</p>
-        ) : (
-          <ul className={styles.list}>
-            {teams.map((team) => (
-              <li key={String(team.id)}>
-                <strong>{team.name}</strong>
-                <p className={styles.muted}>{team.status}</p>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section className={styles.card}>
-        <h2>Recent activity</h2>
-
-        {!eventsReady ? (
-          <p className={styles.muted}>Loading activity…</p>
-        ) : recentEvents.length === 0 ? (
-          <p className={styles.muted}>No activity yet.</p>
-        ) : (
-          <ul className={styles.list}>
-            {recentEvents.map((event) => (
-              <li key={String(event.id)}>
-                {event.message}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
 
       <DeveloperPanel isPlaying={Boolean(sim?.isPlaying)}>
         <p className={styles.muted}>

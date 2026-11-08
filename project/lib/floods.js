@@ -1,5 +1,5 @@
 /**
- * Load historical Harvey high-water marks prepared for The WaterBoard.
+ * Load historical Harvey high-water marks prepared for WaterBoard.
  * Source extract lives at public/harvey_flood_marks.json (converted from the
  * original USGS high-water-mark CSV; no CSV is shipped in the repo).
  */

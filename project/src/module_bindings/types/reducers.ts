@@ -14,6 +14,7 @@ import CreateRescueRequestReducer from "../create_rescue_request_reducer";
 import CreateRescueTeamReducer from "../create_rescue_team_reducer";
 import CreateSimulationReducer from "../create_simulation_reducer";
 import CreateSosReducer from "../create_sos_reducer";
+import ImportCsvDataReducer from "../import_csv_data_reducer";
 import RecommendDispatchReducer from "../recommend_dispatch_reducer";
 import RecomputeThreatsReducer from "../recompute_threats_reducer";
 import ResetSimulationReducer from "../reset_simulation_reducer";
@@ -34,6 +35,7 @@ export type CreateRescueRequestParams = __Infer<typeof CreateRescueRequestReduce
 export type CreateRescueTeamParams = __Infer<typeof CreateRescueTeamReducer>;
 export type CreateSimulationParams = __Infer<typeof CreateSimulationReducer>;
 export type CreateSosParams = __Infer<typeof CreateSosReducer>;
+export type ImportCsvDataParams = __Infer<typeof ImportCsvDataReducer>;
 export type RecommendDispatchParams = __Infer<typeof RecommendDispatchReducer>;
 export type RecomputeThreatsParams = __Infer<typeof RecomputeThreatsReducer>;
 export type ResetSimulationParams = __Infer<typeof ResetSimulationReducer>;
