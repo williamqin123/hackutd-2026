@@ -24,11 +24,14 @@ SpacetimeDB uses port **3000**; Next is on **3001** on purpose.
 
 | I want to change… | Edit this file |
 | --- | --- |
-| Page layout, buttons, timeline, seed/dispatch panels, copy/headings | `app/page.js` |
-| Map look, flood circles, markers, popups, legend, LIVE banner | `app/FloodMap.js` |
+| Page layout, seed/dispatch panels, copy/headings | `app/page.js` |
+| Map look, flood circles, markers, popups, legend, LIVE banner | `components/FloodMap.jsx` |
+| Play / pause / 8-hour jump / timeline slider | `components/SimulationClock.jsx` |
+| Threat snapshot list under the map | `components/ThreatSnapshot.jsx` |
+| Clock constants (1h tick, Harvey window) | `lib/sim-clock.js` |
 | App title / HTML metadata / wrap providers | `app/layout.js` |
 | Spacetime connection host / DB name | `app/providers.js` + `.env.local` |
-| Global CSS (fonts, body, base styles) | `app/globals.css` |
+| Global CSS (fonts, body, buttons, sections) | `app/globals.css` |
 | How flood-mark JSON is loaded for seeding | `lib/floods.js` |
 | How storm track / USGS JSON is loaded for seeding | `lib/hazard.js` |
 | Historical assets the UI fetches | `public/*.json` |
@@ -48,12 +51,16 @@ SpacetimeDB uses port **3000**; Next is on **3001** on purpose.
 ```text
 project/
 ├── app/
-│   ├── page.js          ← main dashboard UI (most frontend work)
-│   ├── FloodMap.js      ← Leaflet map (browser-only)
+│   ├── page.js          ← dashboard: wires data + composes components
 │   ├── providers.js     ← SpacetimeDB React provider / connection
 │   ├── layout.js        ← root layout + document title
 │   └── globals.css      ← global styles
+├── components/
+│   ├── FloodMap.jsx         ← Leaflet threat map (browser-only)
+│   ├── SimulationClock.jsx  ← play / slider / 8-hour advance
+│   └── ThreatSnapshot.jsx   ← gage/site threat summary
 ├── lib/
+│   ├── sim-clock.js     ← Harvey window + 1h tick helpers
 │   ├── floods.js        ← load /harvey_flood_marks.json
 │   └── hazard.js        ← load storm + USGS JSON
 ├── public/
@@ -74,33 +81,29 @@ This is the home page. It:
 
 1. Subscribes to Spacetime tables with `useTable(...)`
 2. Loads JSON historical files once
-3. Seeds / seeks / advances the simulation
-4. Renders `<FloodMap />` plus panels (threat list, timeline, dispatch)
+3. Seeds historical layers
+4. Renders map → simulation clock → threat snapshot, then dispatch panels
 
-### Useful knobs near the top
+### Clock knobs (`lib/sim-clock.js`)
 
 ```js
-const REGION = "houston-harvey";
-const STEP_MICROS = 8n * HOUR_MICROS;      // play / “Advance 8 hours”
-const DAY_MICROS = 24n * HOUR_MICROS;      // “Advance 1 day”
-const SIM_START_MICROS = 1503619200000000n; // Aug 25, 2017
-const SIM_END_MICROS = 1504310400000000n;   // Sep 2, 2017
-const PLAY_INTERVAL_MS = 350;              // how fast Play ticks
+export const HOUR_MICROS = 3_600_000_000n;     // Play tick = 1 sim-hour
+export const EIGHT_HOUR_MICROS = 8n * HOUR_MICROS;
+export const SIM_START_MICROS = 1503619200000000n; // Aug 25, 2017
+export const SIM_END_MICROS = 1504310400000000n;   // Sep 2, 2017
+export const PLAY_INTERVAL_MS = 400;               // how fast Play ticks
 ```
 
-### Sections inside the JSX (search for the `<h2>`)
+### Page composition (top to bottom)
 
-| Heading in UI | What to edit |
+| Block | Component / section |
 | --- | --- |
-| Title / intro paragraph | Branding, tagline |
-| Yellow “No flood layers…” banner | Empty-DB messaging |
-| `<FloodMap … />` props | What data the map receives |
-| **Timeline scrubber** | Slider range / labels |
-| **Threat snapshot** | How threat levels are listed |
-| **Historical data** | Seed button + counts |
-| **Simulation clock** | Play / Pause / Advance / Jump buttons |
-| **Dispatch demo** | SOS / recommend / confirm UI |
-| **Activity** | Event feed |
+| Title / intro / connection | `app/page.js` |
+| Map | `components/FloodMap.jsx` |
+| Simulation clock + slider | `components/SimulationClock.jsx` |
+| Threat snapshot | `components/ThreatSnapshot.jsx` |
+| Historical data / seed | `app/page.js` |
+| Dispatch demo / activity | `app/page.js` |
 
 ### Calling the backend from the UI
 
@@ -124,7 +127,7 @@ After backend adds a new public table/reducer, regenerate bindings, then import 
 
 ---
 
-## 4. `app/FloodMap.js` — map visuals
+## 4. `components/FloodMap.jsx` — map visuals
 
 Loaded with `next/dynamic(..., { ssr: false })` from `page.js` because Leaflet needs `window`.
 
@@ -141,10 +144,10 @@ Loaded with `next/dynamic(..., { ssr: false })` from `page.js` because Leaflet n
 
 ### Where visuals are defined
 
-| Visual | Look for in `FloodMap.js` |
+| Visual | Look for in `FloodMap.jsx` |
 | --- | --- |
 | Threat colors | `LEVEL_COLORS` / `LEVEL_FILL` |
-| Flood zone circles + pulse | loop over `threatRegions` |
+| Flood zone circles | loop over `threatRegions` |
 | Permanent labels on hot gages | `bindTooltip(..., { permanent: isHot })` |
 | Storm track + eye | `stormPath` / `currentStorm` |
 | Threatened flood-mark dots | loop over `floodMarks` + `siteThreats` (skips `none`) |
@@ -174,9 +177,8 @@ Restart `npm run dev` after changing env files.
 
 | Approach | Where |
 | --- | --- |
-| Most current UI | Inline `style={{ ... }}` in `page.js` / `FloodMap.js` |
-| Shared page CSS | `app/globals.css` |
-| Map-only CSS | `<style>{`…`}</style>` inside `FloodMap.js` (pulse, popup z-index) |
+| Dashboard layout / buttons | `app/globals.css` |
+| Map-only CSS | `<style>` inside `FloodMap.jsx` (popup z-index) |
 
 There is no Tailwind / component library in this project yet — add one only if the team agrees.
 
@@ -191,7 +193,7 @@ There is no Tailwind / component library in this project yet — add one only if
 
 ### Make Play slower/faster or change step size
 
-Edit `PLAY_INTERVAL_MS` and `STEP_MICROS` at the top of `app/page.js`.
+Edit `PLAY_INTERVAL_MS` and `HOUR_MICROS` / `EIGHT_HOUR_MICROS` in `lib/sim-clock.js`. Play always advances **1 sim-hour**; use **Advance 8 hours** for a jump.
 
 ### Add a new panel on the dashboard
 
@@ -199,11 +201,11 @@ Add a `<section>` in `app/page.js` near the other sections. Subscribe with `useT
 
 ### Change flood colors / circle size
 
-Edit `LEVEL_COLORS`, `LEVEL_FILL`, and the `L.circle` / `L.circleMarker` options in `app/FloodMap.js`.
+Edit `LEVEL_COLORS`, `LEVEL_FILL`, and the `L.circle` / `L.circleMarker` options in `components/FloodMap.jsx`.
 
 ### Show more markers when threat is low
 
-In `FloodMap.js`, the mark loop currently `continue`s when `level === "none"`. Remove or soften that filter.
+In `FloodMap.jsx`, the mark loop currently `continue`s when `level === "none"`. Remove or soften that filter.
 
 ### Point at Maincloud instead of local
 
@@ -221,7 +223,7 @@ Only works if that database has The WaterBoard module published.
 ## 8. Conventions for teammates
 
 - Prefer **`.js`** for UI files (team preference: not TypeScript on the frontend).
-- Keep map code in `FloodMap.js`; keep orchestration/buttons in `page.js`.
+- Keep map code in `components/FloodMap.jsx`; clock in `SimulationClock.jsx`; page.js only wires data.
 - Don’t commit secrets; use `.env.local`.
 - If the UI can’t see a new reducer/table, regenerate bindings from `project/`:
 

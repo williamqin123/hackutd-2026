@@ -14,10 +14,10 @@ const LEVEL_COLORS = {
 
 const LEVEL_FILL = {
   none: 0.04,
-  watch: 0.18,
-  advisory: 0.28,
-  warning: 0.38,
-  critical: 0.48,
+  watch: 0.12,
+  advisory: 0.16,
+  warning: 0.2,
+  critical: 0.22,
 };
 
 function microsToLabel(micros) {
@@ -52,13 +52,17 @@ export default function FloodMap({
 
   const currentStorm = stormPath.length ? stormPath[stormPath.length - 1] : null;
 
-  const activeFloodCount = useMemo(
+  const hotGages = useMemo(
     () =>
       threatRegions.filter((r) => r.level === "warning" || r.level === "critical")
-        .length +
+        .length,
+    [threatRegions],
+  );
+  const hotSites = useMemo(
+    () =>
       siteThreats.filter((t) => t.level === "warning" || t.level === "critical")
         .length,
-    [threatRegions, siteThreats],
+    [siteThreats],
   );
 
   useEffect(() => {
@@ -75,6 +79,14 @@ export default function FloodMap({
       maxZoom: 18,
     }).addTo(map);
 
+    // Hover-only stage discs. pointer-events none so they never steal the gage-dot hover.
+    map.createPane("floodZones");
+    const floodPane = map.getPane("floodZones");
+    if (floodPane) {
+      floodPane.style.zIndex = "350";
+      floodPane.style.pointerEvents = "none";
+    }
+
     // Keep popups above overlays / legend.
     const popupPane = map.getPane("popupPane");
     if (popupPane) popupPane.style.zIndex = "1000";
@@ -82,8 +94,8 @@ export default function FloodMap({
     if (tooltipPane) tooltipPane.style.zIndex = "950";
 
     layersRef.current = {
-      regions: L.layerGroup().addTo(map),
       floods: L.layerGroup().addTo(map),
+      regions: L.layerGroup().addTo(map),
       track: L.layerGroup().addTo(map),
       marks: L.layerGroup().addTo(map),
       units: L.layerGroup().addTo(map),
@@ -113,39 +125,41 @@ export default function FloodMap({
     layers.units.clearLayers();
     layers.labels.clearLayers();
 
-    // Gauge-centered flood / threat zones (the main "where is flooding" signal)
-    for (const region of threatRegions) {
+    // USGS gages: 4 imported sensors. Color follows live stage ratio — not hardcoded.
+    // Stage discs appear only while hovering that gage's center dot.
+    const showGageHalo = (region) => {
+      layers.floods.clearLayers();
       const color = LEVEL_COLORS[region.level] ?? LEVEL_COLORS.none;
       const isHot = region.level === "warning" || region.level === "critical";
-      const circle = L.circle([region.lat, region.lon], {
+      L.circle([region.lat, region.lon], {
         radius: Math.max(800, region.radiusKm * 1000),
+        pane: "floodZones",
         color,
-        weight: isHot ? 3 : 2,
+        weight: isHot ? 2 : 1.5,
         fillColor: color,
         fillOpacity: LEVEL_FILL[region.level] ?? 0.1,
-        className: isHot ? "waterboard-flood-pulse" : undefined,
-      });
-      circle.bindPopup(
-        `<strong>${region.name}</strong><br/>` +
-          `<span style="color:${color};font-weight:700;text-transform:uppercase">${region.level}</span> flood zone<br/>` +
-          `Gage ${region.gageHeightFt.toFixed(1)} ft / stage ${region.floodStageFt.toFixed(0)} ft ` +
-          `(${(region.stageRatio * 100).toFixed(0)}%)<br/>` +
-          `<em>Modelled zone from USGS gage height — not an official inundation map</em>`,
-        { maxWidth: 280, autoPan: true },
-      );
-      layers.regions.addLayer(circle);
-
-      // Outer wash to make flooded corridors obvious at city scale
+        interactive: false,
+      }).addTo(layers.floods);
       if (isHot) {
         L.circle([region.lat, region.lon], {
           radius: Math.max(1200, region.radiusKm * 1400),
+          pane: "floodZones",
           color,
-          weight: 0,
+          weight: 1,
+          opacity: 0.35,
           fillColor: color,
-          fillOpacity: 0.12,
+          fillOpacity: 0.07,
           interactive: false,
         }).addTo(layers.floods);
       }
+    };
+
+    for (const region of threatRegions) {
+      const color = LEVEL_COLORS[region.level] ?? LEVEL_COLORS.none;
+      const isHot = region.level === "warning" || region.level === "critical";
+      const gageLabel =
+        `USGS gage · ${region.name}: ${region.level.toUpperCase()} ` +
+        `(${region.gageHeightFt.toFixed(1)} ft)`;
 
       L.circleMarker([region.lat, region.lon], {
         radius: isHot ? 8 : 6,
@@ -154,10 +168,21 @@ export default function FloodMap({
         fillColor: color,
         fillOpacity: 1,
       })
-        .bindTooltip(
-          `${region.name}: ${region.level.toUpperCase()} (${region.gageHeightFt.toFixed(1)} ft)`,
-          { permanent: isHot, direction: "top", offset: [0, -8], opacity: 0.95 },
+        .bindTooltip(gageLabel, {
+          direction: "top",
+          offset: [0, -8],
+          opacity: 0.95,
+        })
+        .bindPopup(
+          `<strong>USGS gage</strong> · ${region.name}<br/>` +
+            `<span style="color:${color};font-weight:700;text-transform:uppercase">${region.level}</span><br/>` +
+            `${region.gageHeightFt.toFixed(1)} ft / flood stage ${region.floodStageFt.toFixed(0)} ft ` +
+            `(${(region.stageRatio * 100).toFixed(0)}%)<br/>` +
+            `<em>Sensor reading at this sim time — not a mapped flood extent</em>`,
+          { maxWidth: 280, autoPan: true },
         )
+        .on("mouseover", () => showGageHalo(region))
+        .on("mouseout", () => layers.floods.clearLayers())
         .addTo(layers.labels);
     }
 
@@ -301,17 +326,9 @@ export default function FloodMap({
           background: transparent;
           border: 0;
         }
-        @keyframes waterboardPulse {
-          0% { opacity: 0.35; }
-          50% { opacity: 0.7; }
-          100% { opacity: 0.35; }
-        }
-        .waterboard-flood-pulse {
-          animation: waterboardPulse 1.8s ease-in-out infinite;
-        }
       `}</style>
 
-      {activeFloodCount > 0 && (
+      {(hotGages > 0 || hotSites > 0) && (
         <div
           style={{
             position: "absolute",
@@ -330,7 +347,13 @@ export default function FloodMap({
             pointerEvents: "none",
           }}
         >
-          LIVE FLOODING SIGNAL · {activeFloodCount} hot zones/sites
+          {hotGages > 0
+            ? `${hotGages} USGS gage${hotGages === 1 ? "" : "s"} above flood stage`
+            : null}
+          {hotGages > 0 && hotSites > 0 ? " · " : null}
+          {hotSites > 0
+            ? `${hotSites} high-water site${hotSites === 1 ? "" : "s"}`
+            : null}
         </div>
       )}
 
@@ -383,8 +406,8 @@ export default function FloodMap({
           ))}
         </div>
         <div style={{ opacity: 0.85, marginTop: 6 }}>
-          Colored circles = flooding zones from USGS gages · bright dots =
-          threatened flood-mark sites · purple = Harvey track
+          Dots = surveyed high-water marks · hover a gage center for its stage
+          halo · purple = Harvey track
         </div>
       </div>
     </div>
