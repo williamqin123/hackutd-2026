@@ -61,7 +61,7 @@ Cyberpunk is the default dark theme. A theme switch lets users choose Light mode
 
 ### Requirements
 
-- Node.js matching the version requirements in `project/package.json`
+- Node.js 20.9 or newer
 - npm
 - Access to a published SpacetimeDB database
 
