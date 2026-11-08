@@ -4,6 +4,10 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
+    "predev": "node scripts/prepare-map-worker.js",
+    "predev:frontend": "node scripts/prepare-map-worker.js",
+    "prebuild": "node scripts/prepare-map-worker.js",
+    "prestart": "node scripts/prepare-map-worker.js",
     "dev": "node scripts/dev.js",
     "dev:frontend": "next dev --port 3000",
     "build": "next build",

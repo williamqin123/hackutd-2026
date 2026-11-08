@@ -12,6 +12,7 @@ export default function FloodMap({ records }) {
   useEffect(() => {
     let map;
     try {
+      maplibregl.setWorkerUrl(`/maplibre/${maplibregl.getVersion()}/maplibre-gl-worker.mjs`);
       map = new maplibregl.Map({
         container: container.current,
         style: { version: 8, sources: { osm: {
@@ -22,9 +23,9 @@ export default function FloodMap({ records }) {
       });
       mapRef.current = map;
       map.addControl(new maplibregl.NavigationControl());
-      map.on('error', () => setError('Map tiles could not load. Flood records remain available in the table.'));
-    } catch {
-      setError('The map requires WebGL. Flood records remain available in the table.');
+      map.on('error', event => setError(`Map error: ${event.error?.message || 'An unknown error occurred.'} Flood records remain available in the table.`));
+    } catch (error) {
+      setError(`Map could not start: ${error.message} Flood records remain available in the table.`);
     }
     return () => { map?.remove(); mapRef.current = null; fittedPoints.current = ''; };
   }, []);

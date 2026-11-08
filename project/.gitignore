@@ -10,3 +10,4 @@ spacetime.local.json
 .env*
 !.env.example
 .spacetime/
+public/maplibre/

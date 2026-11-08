@@ -105,6 +105,8 @@ The baseline `historical-proximity-screening-v1` finds historical observations w
 
 A calibrated flood-depth or flood-extent model requires terrain, drainage data and a validated algorithm. Replace the pure `simulate()` function when those are supplied. The current scheduled transaction is suitable for the included 365 observations; large datasets or expensive models need indexed spatial selection and chunked scheduled jobs.
 
+Startup and build commands copy the installed MapLibre worker and companion module into `public/maplibre/<version>/`. The map uses that same-origin worker URL before initialization. These generated files are ignored by Git and regenerated automatically.
+
 The map uses OpenStreetMap raster tiles and requires internet access and WebGL. The table remains available if the map fails. Use an appropriate tile provider for production traffic.
 
 ## Verification
