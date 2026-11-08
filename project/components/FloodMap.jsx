@@ -385,9 +385,6 @@ export default function FloodMap({
           pointerEvents: "none",
         }}
       >
-        <div>
-          <strong>Sim time:</strong> {microsToLabel(simTimeMicros)}
-        </div>
         <div style={{ marginTop: 6 }}>
           {Object.entries(LEVEL_COLORS).map(([level, color]) => (
             <span key={level} style={{ marginRight: 8, whiteSpace: "nowrap" }}>
