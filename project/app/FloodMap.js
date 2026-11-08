@@ -12,6 +12,14 @@ const LEVEL_COLORS = {
   critical: "#ef4444",
 };
 
+const LEVEL_FILL = {
+  none: 0.04,
+  watch: 0.18,
+  advisory: 0.28,
+  warning: 0.38,
+  critical: 0.48,
+};
+
 function microsToLabel(micros) {
   if (micros === undefined || micros === null) return "—";
   const ms = Number(micros / 1000n);
@@ -19,9 +27,8 @@ function microsToLabel(micros) {
 }
 
 /**
- * Live Houston flood map.
- * Layers: OSM basemap, storm track (past), storm eye, gauge threat regions,
- * colored flood-mark threats, rescue requests/teams.
+ * Live Houston flood map for The WaterBoard.
+ * Layers: OSM basemap, storm track, gauge flood zones, active flood sites.
  */
 export default function FloodMap({
   simTimeMicros,
@@ -45,6 +52,15 @@ export default function FloodMap({
 
   const currentStorm = stormPath.length ? stormPath[stormPath.length - 1] : null;
 
+  const activeFloodCount = useMemo(
+    () =>
+      threatRegions.filter((r) => r.level === "warning" || r.level === "critical")
+        .length +
+      siteThreats.filter((t) => t.level === "warning" || t.level === "critical")
+        .length,
+    [threatRegions, siteThreats],
+  );
+
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
@@ -59,13 +75,24 @@ export default function FloodMap({
       maxZoom: 18,
     }).addTo(map);
 
+    // Keep popups above overlays / legend.
+    const popupPane = map.getPane("popupPane");
+    if (popupPane) popupPane.style.zIndex = "1000";
+    const tooltipPane = map.getPane("tooltipPane");
+    if (tooltipPane) tooltipPane.style.zIndex = "950";
+
     layersRef.current = {
       regions: L.layerGroup().addTo(map),
+      floods: L.layerGroup().addTo(map),
       track: L.layerGroup().addTo(map),
       marks: L.layerGroup().addTo(map),
       units: L.layerGroup().addTo(map),
+      labels: L.layerGroup().addTo(map),
     };
     mapRef.current = map;
+
+    // Invalidate size after layout so tiles/popups position correctly.
+    setTimeout(() => map.invalidateSize(), 50);
 
     return () => {
       map.remove();
@@ -80,37 +107,58 @@ export default function FloodMap({
     if (!map || !layers) return;
 
     layers.regions.clearLayers();
+    layers.floods.clearLayers();
     layers.track.clearLayers();
     layers.marks.clearLayers();
     layers.units.clearLayers();
+    layers.labels.clearLayers();
 
-    // Threat regions around gauges (modelled live flood influence)
+    // Gauge-centered flood / threat zones (the main "where is flooding" signal)
     for (const region of threatRegions) {
       const color = LEVEL_COLORS[region.level] ?? LEVEL_COLORS.none;
+      const isHot = region.level === "warning" || region.level === "critical";
       const circle = L.circle([region.lat, region.lon], {
-        radius: Math.max(500, region.radiusKm * 1000),
+        radius: Math.max(800, region.radiusKm * 1000),
         color,
-        weight: 2,
+        weight: isHot ? 3 : 2,
         fillColor: color,
-        fillOpacity: region.level === "none" ? 0.05 : 0.22,
+        fillOpacity: LEVEL_FILL[region.level] ?? 0.1,
+        className: isHot ? "waterboard-flood-pulse" : undefined,
       });
       circle.bindPopup(
         `<strong>${region.name}</strong><br/>` +
-          `Gage ${region.gageHeightFt.toFixed(1)} ft / stage ${region.floodStageFt.toFixed(0)} ft<br/>` +
-          `Ratio ${(region.stageRatio * 100).toFixed(0)}% · ${region.level}<br/>` +
-          `<em>Modelled threat region (not official inundation)</em>`,
+          `<span style="color:${color};font-weight:700;text-transform:uppercase">${region.level}</span> flood zone<br/>` +
+          `Gage ${region.gageHeightFt.toFixed(1)} ft / stage ${region.floodStageFt.toFixed(0)} ft ` +
+          `(${(region.stageRatio * 100).toFixed(0)}%)<br/>` +
+          `<em>Modelled zone from USGS gage height — not an official inundation map</em>`,
+        { maxWidth: 280, autoPan: true },
       );
       layers.regions.addLayer(circle);
 
+      // Outer wash to make flooded corridors obvious at city scale
+      if (isHot) {
+        L.circle([region.lat, region.lon], {
+          radius: Math.max(1200, region.radiusKm * 1400),
+          color,
+          weight: 0,
+          fillColor: color,
+          fillOpacity: 0.12,
+          interactive: false,
+        }).addTo(layers.floods);
+      }
+
       L.circleMarker([region.lat, region.lon], {
-        radius: 6,
+        radius: isHot ? 8 : 6,
         color: "#0f172a",
-        weight: 1,
+        weight: 2,
         fillColor: color,
         fillOpacity: 1,
       })
-        .bindTooltip(region.name)
-        .addTo(layers.regions);
+        .bindTooltip(
+          `${region.name}: ${region.level.toUpperCase()} (${region.gageHeightFt.toFixed(1)} ft)`,
+          { permanent: isHot, direction: "top", offset: [0, -8], opacity: 0.95 },
+        )
+        .addTo(layers.labels);
     }
 
     // Storm track up to current sim time
@@ -129,13 +177,13 @@ export default function FloodMap({
         weight: 2,
       })
         .bindPopup(
-          `<strong>Harvey eye (sim)</strong><br/>` +
+          `<strong>Harvey center (sim)</strong><br/>` +
             `${microsToLabel(currentStorm.timeMicros)}<br/>` +
             `Wind ${currentStorm.windKt} kt · SSHS ${currentStorm.sshs}`,
+          { autoPan: true },
         )
         .addTo(layers.track);
 
-      // Storm influence halo (visual only; scoring uses same idea server-side)
       const wind = currentStorm.windKt || 0;
       L.circle([currentStorm.lat, currentStorm.lon], {
         radius: (40 + wind * 0.8) * 1000,
@@ -143,66 +191,70 @@ export default function FloodMap({
         weight: 1,
         dashArray: "4 6",
         fillColor: "#a78bfa",
-        fillOpacity: 0.06,
+        fillOpacity: 0.05,
+        interactive: false,
       }).addTo(layers.track);
     }
 
-    // Site threats / flood marks
+    // Active flood-mark sites (skip quiet "none" dots so flooding stands out)
     const threatById = new Map(
       siteThreats.map((t) => [t.objectId.toString(), t]),
     );
     for (const mark of floodMarks) {
       const threat = threatById.get(mark.objectId.toString());
       const level = threat?.level ?? "none";
+      if (level === "none") continue;
+
       const color = LEVEL_COLORS[level] ?? LEVEL_COLORS.none;
-      const radius = level === "critical" ? 7 : level === "warning" ? 6 : 4;
+      const isHot = level === "warning" || level === "critical";
+      const radius = isHot ? 8 : level === "advisory" ? 6 : 5;
       const marker = L.circleMarker([mark.lat, mark.lon], {
         radius,
-        color: "#0f172a",
-        weight: 1,
+        color: "#7f1d1d",
+        weight: isHot ? 2 : 1,
         fillColor: color,
-        fillOpacity: level === "none" ? 0.35 : 0.9,
+        fillOpacity: 0.95,
       });
       const score = threat ? threat.threatScore.toFixed(0) : "—";
       marker.bindPopup(
-        `<strong>Flood mark #${mark.objectId}</strong><br/>` +
-          `${mark.waterbody ?? mark.label ?? "High-water mark"}<br/>` +
-          `Threat ${level} (score ${score})<br/>` +
+        `<strong>Flooding signal · mark #${mark.objectId}</strong><br/>` +
+          `${mark.waterbody ?? mark.label ?? "High-water site"}<br/>` +
+          `<span style="color:${color};font-weight:700;text-transform:uppercase">${level}</span> (score ${score})<br/>` +
           (threat
             ? `storm ${threat.stormComponent.toFixed(0)} · gauge ${threat.gaugeComponent.toFixed(0)} · hist ${threat.historicalComponent.toFixed(0)}`
             : "Run recompute to score"),
+        { maxWidth: 280, autoPan: true },
       );
       layers.marks.addLayer(marker);
     }
 
     for (const req of requests) {
-      L.marker([req.lat, req.lon], {
-        title: `SOS #${req.id}`,
-      })
-        // Use a divIcon so we don't depend on Leaflet default image assets.
+      L.marker([req.lat, req.lon], { title: `SOS #${req.id}`, zIndexOffset: 500 })
         .setIcon(
           L.divIcon({
-            className: "",
+            className: "waterboard-divicon",
             html: `<div style="background:#b91c1c;color:white;border-radius:999px;padding:2px 6px;font:12px system-ui;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.4)">SOS</div>`,
             iconSize: [36, 20],
             iconAnchor: [18, 10],
           }),
         )
-        .bindPopup(`SOS #${req.id}<br/>${req.description}<br/>${req.status}`)
+        .bindPopup(`SOS #${req.id}<br/>${req.description}<br/>${req.status}`, {
+          autoPan: true,
+        })
         .addTo(layers.units);
     }
 
     for (const team of teams) {
-      L.marker([team.lat, team.lon])
+      L.marker([team.lat, team.lon], { zIndexOffset: 400 })
         .setIcon(
           L.divIcon({
-            className: "",
+            className: "waterboard-divicon",
             html: `<div style="background:#0369a1;color:white;border-radius:6px;padding:2px 6px;font:12px system-ui;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.4)">TEAM</div>`,
             iconSize: [44, 20],
             iconAnchor: [22, 10],
           }),
         )
-        .bindPopup(`${team.name}<br/>${team.status}`)
+        .bindPopup(`${team.name}<br/>${team.status}`, { autoPan: true })
         .addTo(layers.units);
     }
   }, [
@@ -216,29 +268,98 @@ export default function FloodMap({
   ]);
 
   return (
-    <div style={{ position: "relative" }}>
+    <div className="waterboard-map-shell" style={{ position: "relative" }}>
+      <style>{`
+        .waterboard-map-shell .leaflet-container {
+          font: 13px/1.35 system-ui, sans-serif;
+        }
+        .waterboard-map-shell .leaflet-popup-pane {
+          z-index: 1000 !important;
+        }
+        .waterboard-map-shell .leaflet-tooltip-pane {
+          z-index: 950 !important;
+        }
+        .waterboard-map-shell .leaflet-popup {
+          margin-bottom: 16px;
+        }
+        .waterboard-map-shell .leaflet-popup-content-wrapper {
+          border-radius: 10px;
+          box-shadow: 0 8px 24px rgba(15, 23, 42, 0.25);
+        }
+        .waterboard-map-shell .leaflet-tooltip {
+          background: rgba(15, 23, 42, 0.92);
+          color: #fff;
+          border: none;
+          border-radius: 6px;
+          padding: 4px 8px;
+          box-shadow: 0 2px 8px rgba(0,0,0,.35);
+        }
+        .waterboard-map-shell .leaflet-tooltip-top:before {
+          border-top-color: rgba(15, 23, 42, 0.92);
+        }
+        .waterboard-divicon {
+          background: transparent;
+          border: 0;
+        }
+        @keyframes waterboardPulse {
+          0% { opacity: 0.35; }
+          50% { opacity: 0.7; }
+          100% { opacity: 0.35; }
+        }
+        .waterboard-flood-pulse {
+          animation: waterboardPulse 1.8s ease-in-out infinite;
+        }
+      `}</style>
+
+      {activeFloodCount > 0 && (
+        <div
+          style={{
+            position: "absolute",
+            top: 12,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 900,
+            background: "#b91c1c",
+            color: "white",
+            padding: "8px 14px",
+            borderRadius: 999,
+            fontWeight: 700,
+            fontSize: 13,
+            letterSpacing: 0.3,
+            boxShadow: "0 4px 16px rgba(185,28,28,.45)",
+            pointerEvents: "none",
+          }}
+        >
+          LIVE FLOODING SIGNAL · {activeFloodCount} hot zones/sites
+        </div>
+      )}
+
       <div
         ref={containerRef}
         style={{
-          height: 480,
+          height: 520,
           width: "100%",
           borderRadius: 12,
-          overflow: "hidden",
+          // Do NOT use overflow:hidden — it clips Leaflet popups.
           border: "1px solid #cbd5e1",
+          background: "#e2e8f0",
         }}
       />
+
       <div
         style={{
           position: "absolute",
           left: 12,
           bottom: 12,
-          background: "rgba(15,23,42,0.86)",
+          zIndex: 800,
+          background: "rgba(15,23,42,0.9)",
           color: "white",
           padding: "8px 10px",
           borderRadius: 8,
           fontSize: 12,
           lineHeight: 1.35,
-          maxWidth: 280,
+          maxWidth: 300,
+          pointerEvents: "none",
         }}
       >
         <div>
@@ -246,7 +367,7 @@ export default function FloodMap({
         </div>
         <div style={{ marginTop: 6 }}>
           {Object.entries(LEVEL_COLORS).map(([level, color]) => (
-            <span key={level} style={{ marginRight: 8 }}>
+            <span key={level} style={{ marginRight: 8, whiteSpace: "nowrap" }}>
               <span
                 style={{
                   display: "inline-block",
@@ -261,9 +382,9 @@ export default function FloodMap({
             </span>
           ))}
         </div>
-        <div style={{ opacity: 0.8, marginTop: 6 }}>
-          Circles = gauge threat regions · dots = flood-mark scores · purple =
-          Harvey track
+        <div style={{ opacity: 0.85, marginTop: 6 }}>
+          Colored circles = flooding zones from USGS gages · bright dots =
+          threatened flood-mark sites · purple = Harvey track
         </div>
       </div>
     </div>

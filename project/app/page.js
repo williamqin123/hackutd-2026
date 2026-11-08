@@ -1,11 +1,31 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { useSpacetimeDB, useTable } from "spacetimedb/react";
 import { tables } from "../src/module_bindings";
 import { loadFloodMarks } from "../lib/floods";
 import { loadStormTrack, loadUsgsGauges } from "../lib/hazard";
-import FloodMap from "./FloodMap";
+
+// Leaflet touches `window` at import time — load the map only in the browser.
+const FloodMap = dynamic(() => import("./FloodMap"), {
+  ssr: false,
+  loading: () => (
+    <div
+      style={{
+        height: 480,
+        borderRadius: 12,
+        border: "1px solid #cbd5e1",
+        display: "grid",
+        placeItems: "center",
+        color: "#64748b",
+        background: "#f8fafc",
+      }}
+    >
+      Loading map…
+    </div>
+  ),
+});
 
 const REGION = "houston-harvey";
 const HOUR_MICROS = 3_600_000_000n;
