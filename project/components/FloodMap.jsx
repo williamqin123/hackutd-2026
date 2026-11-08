@@ -44,6 +44,7 @@ export default function FloodMap({
   requests = [],
   teams = [],
   assignments = [],
+  connected = false,
   selectedRequestId = null,
   onSelectRequest,
 }) {
@@ -175,8 +176,6 @@ export default function FloodMap({
     layers.floods.clearLayers();
     layers.track.clearLayers();
     layers.marks.clearLayers();
-    layers.units.clearLayers();
-    layers.teamUnits.clearLayers();
     layers.labels.clearLayers();
 
     // USGS gages: 4 imported sensors. Color follows live stage ratio — not hardcoded.
@@ -307,6 +306,15 @@ export default function FloodMap({
       layers.marks.addLayer(marker);
     }
 
+  }, [stormPath, currentStorm, threatRegions, siteThreats, floodMarks]);
+
+  // Keep marker animations running when the simulation redraws flood layers.
+  useEffect(() => {
+    const layers = layersRef.current;
+    if (!layers) return;
+    layers.units.clearLayers();
+    layers.teamUnits.clearLayers();
+
     // Active SOS only — completed/cancelled leave the map so teams don't overlap ghosts.
     const activeRequests = requests.filter((req) =>
       ["pending", "recommended", "assigned"].includes(req.status),
@@ -405,11 +413,6 @@ export default function FloodMap({
         .addTo(layers.teamUnits);
     }
   }, [
-    stormPath,
-    currentStorm,
-    threatRegions,
-    siteThreats,
-    floodMarks,
     requests,
     teams,
     assignments,
@@ -418,7 +421,7 @@ export default function FloodMap({
 
   return (
     <>
-    <div className="waterboard-map-shell" style={{ position: "relative" }}>
+    <div className="waterboard-map-shell" data-live={connected} style={{ position: "relative" }}>
       <style>{`
         .waterboard-map-shell .leaflet-container {
           font: 13px/1.35 system-ui, sans-serif;
@@ -476,10 +479,42 @@ export default function FloodMap({
           font-size: 12px;
         }
         .waterboard-chip-sos {
+          position: relative;
+          isolation: isolate;
+          --sos-pulse-color: #ef4444;
           background: #b91c1c;
           border-radius: 999px;
         }
+        .waterboard-chip-sos::before,
+        .waterboard-chip-sos::after {
+          content: "";
+          position: absolute;
+          inset: -4px;
+          border: 2px solid var(--sos-pulse-color);
+          border-radius: inherit;
+          pointer-events: none;
+          z-index: -1;
+          opacity: 0;
+        }
+        .waterboard-map-shell[data-live="true"] .waterboard-chip-sos::before,
+        .waterboard-map-shell[data-live="true"] .waterboard-chip-sos::after {
+          animation: waterboardSosPulse 2.4s ease-out infinite;
+        }
+        .waterboard-map-shell[data-live="true"] .waterboard-chip-sos::after {
+          animation-delay: 1.2s;
+        }
+        @keyframes waterboardSosPulse {
+          from { transform: scale(1); opacity: .8; }
+          to { transform: scale(1.7, 2.1); opacity: 0; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .waterboard-map-shell[data-live="true"] .waterboard-chip-sos::before,
+          .waterboard-map-shell[data-live="true"] .waterboard-chip-sos::after {
+            animation: none;
+          }
+        }
         .waterboard-chip-sos-active {
+          --sos-pulse-color: #22c55e;
           background: #16a34a;
           border-color: #bbf7d0;
           box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.35), 0 1px 4px rgba(0,0,0,.35);

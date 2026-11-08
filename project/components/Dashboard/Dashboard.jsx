@@ -264,7 +264,7 @@ export default function Dashboard() {
       />
 
       <div className={styles.intro}>
-        <h1>Every request. A coordinated response.</h1>
+        
         <p>Houston, Texas / Emergency response operations</p>
       </div>
 
@@ -304,6 +304,7 @@ export default function Dashboard() {
               siteThreats={siteThreats}
               floodMarks={floodMarks}
               requests={requests}
+              connected={isActive && reqReady}
               teams={teams}
               assignments={assignments}
               selectedRequestId={selectedRequestId}
