@@ -247,10 +247,13 @@ project/
   spacetimedb/src/index.ts   ← schema + threat + dispatch logic
   app/page.js                ← dashboard, timeline, seed, dispatch UI
   app/FloodMap.js            ← Leaflet map
-  lib/floods.js              ← flood CSV parse
+  lib/floods.js              ← flood-mark JSON loader
   lib/hazard.js              ← storm + USGS JSON loaders
-  public/                    ← CSV/JSON historical assets
-  docs/THE_WATERBOARD.md     ← this document
+  public/                    ← JSON historical assets
+  docs/THE_WATERBOARD.md     ← this document (architecture / threat / schema)
+  docs/FRONTEND.md           ← where to edit UI code
 ```
+
+Frontend-only edit guide: [`FRONTEND.md`](./FRONTEND.md).
 
 For Spacetime concepts (tables, reducers, subscriptions), also see `project/AGENTS.md` and the official docs at https://spacetimedb.com/docs/.
