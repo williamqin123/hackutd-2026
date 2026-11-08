@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSpacetimeDB, useTable } from 'spacetimedb/react';
 import { tables } from '../../src/module_bindings';
+import ThemeToggle from '../../components/ThemeToggle';
 
 // Diverse curated locations across Harris County (flood areas during Hurricane Harvey)
 const HARRIS_COUNTY_LOCATIONS = [
@@ -140,7 +141,10 @@ export default function MobileSosPage() {
   const [rescueRequests] = useTable(tables.rescueRequest);
 
   // Initialize with a random location in Harris County
-  const [randomInit] = useState(() => getRandomHarrisCountyLocation());
+  const [randomInit] = useState(() => {
+    const { address, name, lat, lon } = HARRIS_COUNTY_LOCATIONS[0];
+    return { label: `${address} (${lat}, ${lon})`, name, lat, lon };
+  });
   const [location, setLocation] = useState(randomInit.label);
   const [coords, setCoords] = useState({ lat: randomInit.lat, lon: randomInit.lon });
   const [activeAreaName, setActiveAreaName] = useState(randomInit.name);
@@ -157,6 +161,13 @@ export default function MobileSosPage() {
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [lastSubmission, setLastSubmission] = useState(null);
   const [submitError, setSubmitError] = useState(null);
+
+  useEffect(() => {
+    const next = getRandomHarrisCountyLocation();
+    setLocation(next.label);
+    setCoords({ lat: next.lat, lon: next.lon });
+    setActiveAreaName(next.name);
+  }, []);
 
   // Quick emergency tags
   const quickTags = [
@@ -416,8 +427,8 @@ export default function MobileSosPage() {
           min-height: 100vh;
           min-height: 100dvh;
           width: 100%;
-          background: radial-gradient(circle at 50% 25%, #ef4444 0%, #dc2626 35%, #991b1b 75%, #450a0a 100%);
-          color: #ffffff;
+          background: var(--sos-page-image);
+          color: var(--sos-text);
           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
           display: flex;
           flex-direction: column;
@@ -492,7 +503,7 @@ export default function MobileSosPage() {
                 fontWeight: 700,
                 letterSpacing: 1.2,
                 textTransform: 'uppercase',
-                color: 'rgba(255, 255, 255, 0.9)',
+                color: 'var(--sos-muted)',
               }}
             >
               {isActive ? 'SPACETIMEDB ONLINE' : 'CONNECTING TO GRID…'}
@@ -506,7 +517,7 @@ export default function MobileSosPage() {
               letterSpacing: 1,
               padding: '3px 8px',
               borderRadius: 20,
-              backgroundColor: 'rgba(0, 0, 0, 0.35)',
+              backgroundColor: 'var(--sos-panel)',
               border: '1px solid rgba(255, 255, 255, 0.25)',
               textTransform: 'uppercase',
             }}
@@ -530,7 +541,7 @@ export default function MobileSosPage() {
         <p
           style={{
             fontSize: 13,
-            color: 'rgba(255, 255, 255, 0.85)',
+            color: 'var(--sos-muted)',
             margin: 0,
             textAlign: 'center',
           }}
@@ -544,7 +555,7 @@ export default function MobileSosPage() {
         style={{
           width: '100%',
           maxWidth: 440,
-          backgroundColor: 'rgba(0, 0, 0, 0.42)',
+          backgroundColor: 'var(--sos-panel)',
           backdropFilter: 'blur(12px)',
           WebkitBackdropFilter: 'blur(12px)',
           border: '1px solid rgba(255, 255, 255, 0.22)',
@@ -596,7 +607,7 @@ export default function MobileSosPage() {
           <span
             style={{
               fontSize: 11,
-              color: '#fef08a',
+              color: 'var(--wb-warning)',
               fontWeight: 700,
               display: 'flex',
               alignItems: 'center',
@@ -619,11 +630,11 @@ export default function MobileSosPage() {
               style={{
                 width: '100%',
                 boxSizing: 'border-box',
-                backgroundColor: 'rgba(255, 255, 255, 0.14)',
+                backgroundColor: 'var(--sos-field)',
                 border: '1.5px solid rgba(255, 255, 255, 0.3)',
                 borderRadius: 12,
                 padding: '12px 14px',
-                color: '#ffffff',
+                color: 'var(--sos-text)',
                 fontSize: 14,
                 fontWeight: 600,
                 outline: 'none',
@@ -709,10 +720,10 @@ export default function MobileSosPage() {
             alignItems: 'center',
             justifyContent: 'space-between',
             fontSize: 12,
-            color: 'rgba(255, 255, 255, 0.85)',
+            color: 'var(--sos-muted)',
           }}
         >
-          <span style={{ fontSize: 11, color: '#e2e8f0' }}>
+          <span style={{ fontSize: 11, color: 'var(--sos-muted)' }}>
             Coords: <strong>{coords.lat.toFixed(4)}, {coords.lon.toFixed(4)}</strong>
             {geoAccuracy ? ` (±${geoAccuracy}m)` : ''}
           </span>
@@ -721,10 +732,10 @@ export default function MobileSosPage() {
             type="button"
             onClick={handleShuffleHarrisLocation}
             style={{
-              background: 'rgba(255, 255, 255, 0.15)',
+              background: 'var(--sos-field)',
               border: '1px solid rgba(255, 255, 255, 0.3)',
               borderRadius: 8,
-              color: '#ffffff',
+              color: 'var(--sos-text)',
               fontSize: 11,
               fontWeight: 700,
               cursor: 'pointer',
@@ -812,7 +823,7 @@ export default function MobileSosPage() {
             setSubmitSuccess(false);
             setSubmitError(null);
           }}
-          className="sos-btn-interactive"
+          className="sos-btn-interactive sos-always-white"
           aria-label="Trigger Emergency SOS Dialog"
           style={{
             position: 'relative',
@@ -821,7 +832,7 @@ export default function MobileSosPage() {
             borderRadius: '50%',
             background: 'radial-gradient(circle at 36% 32%, #ff4d4d 0%, #dc2626 50%, #881337 100%)',
             border: '5px solid #ffffff',
-            color: '#ffffff',
+            color: 'var(--sos-text)',
             cursor: 'pointer',
             display: 'flex',
             flexDirection: 'column',
@@ -880,6 +891,7 @@ export default function MobileSosPage() {
         </button>
       </section>
 
+      <div className="relative z-10 my-3"><ThemeToggle /></div>
       {/* Bottom Footer & Stats */}
       <footer
         style={{
@@ -895,7 +907,7 @@ export default function MobileSosPage() {
       >
         <div
           style={{
-            backgroundColor: 'rgba(0, 0, 0, 0.32)',
+            backgroundColor: 'var(--sos-panel)',
             backdropFilter: 'blur(8px)',
             borderRadius: 14,
             padding: '10px 16px',
@@ -909,7 +921,7 @@ export default function MobileSosPage() {
               fontSize: 13,
               fontWeight: 700,
               margin: '0 0 4px',
-              color: '#ffffff',
+              color: 'var(--sos-text)',
             }}
           >
             ⚠️ Tap SOS button to transmit rescue coordinates & situation
@@ -918,7 +930,7 @@ export default function MobileSosPage() {
             style={{
               fontSize: 11,
               margin: 0,
-              color: 'rgba(255, 255, 255, 0.75)',
+              color: 'var(--sos-muted)',
             }}
           >
             Calls SpacetimeDB to create <strong>rescue_request</strong> & <strong>sos</strong> records.
@@ -929,7 +941,7 @@ export default function MobileSosPage() {
         <div
           style={{
             fontSize: 11,
-            color: 'rgba(255, 255, 255, 0.85)',
+            color: 'var(--sos-muted)',
             display: 'flex',
             alignItems: 'center',
             gap: 12,
@@ -977,8 +989,8 @@ export default function MobileSosPage() {
             style={{
               width: '100%',
               maxWidth: 440,
-              backgroundColor: '#170505',
-              backgroundImage: 'radial-gradient(circle at top right, #3b0707 0%, #170505 100%)',
+              backgroundColor: 'var(--sos-panel)',
+              backgroundImage: 'var(--sos-modal-image)',
               border: '1.5px solid rgba(239, 68, 68, 0.45)',
               borderRadius: 24,
               padding: '24px 20px',
@@ -999,14 +1011,14 @@ export default function MobileSosPage() {
                 position: 'absolute',
                 top: 16,
                 right: 16,
-                background: 'rgba(255, 255, 255, 0.1)',
+                background: 'var(--sos-field)',
                 border: 'none',
                 borderRadius: '50%',
                 width: 32,
                 height: 32,
                 display: 'grid',
                 placeItems: 'center',
-                color: '#ffffff',
+                color: 'var(--sos-text)',
                 cursor: 'pointer',
                 fontSize: 16,
               }}
@@ -1057,7 +1069,7 @@ export default function MobileSosPage() {
                     style={{
                       fontSize: 22,
                       fontWeight: 900,
-                      color: '#ffffff',
+                      color: 'var(--sos-text)',
                       margin: '0 0 6px',
                     }}
                   >
@@ -1066,7 +1078,7 @@ export default function MobileSosPage() {
                   <p
                     style={{
                       fontSize: 13,
-                      color: 'rgba(255, 255, 255, 0.85)',
+                      color: 'var(--sos-muted)',
                       margin: 0,
                     }}
                   >
@@ -1079,7 +1091,7 @@ export default function MobileSosPage() {
                   <div
                     style={{
                       width: '100%',
-                      backgroundColor: 'rgba(0, 0, 0, 0.45)',
+                      backgroundColor: 'var(--sos-panel)',
                       borderRadius: 14,
                       border: '1px solid rgba(255, 255, 255, 0.15)',
                       padding: '14px',
@@ -1093,23 +1105,23 @@ export default function MobileSosPage() {
                   >
                     <div>
                       <span style={{ color: '#86efac', fontWeight: 800 }}>✓ Rescue Request: </span>
-                      <span style={{ color: '#ffffff' }}>Pending dispatch queue</span>
+                      <span style={{ color: 'var(--sos-text)' }}>Pending dispatch queue</span>
                     </div>
                     <div>
-                      <span style={{ color: '#fca5a5', fontWeight: 700 }}>Coordinates: </span>
-                      <span style={{ color: '#ffffff' }}>{lastSubmission.lat}, {lastSubmission.lon}</span>
+                      <span style={{ color: 'var(--wb-danger)', fontWeight: 700 }}>Coordinates: </span>
+                      <span style={{ color: 'var(--sos-text)' }}>{lastSubmission.lat}, {lastSubmission.lon}</span>
                     </div>
                     <div>
-                      <span style={{ color: '#fca5a5', fontWeight: 700 }}>Location: </span>
-                      <span style={{ color: '#ffffff' }}>{lastSubmission.location}</span>
+                      <span style={{ color: 'var(--wb-danger)', fontWeight: 700 }}>Location: </span>
+                      <span style={{ color: 'var(--sos-text)' }}>{lastSubmission.location}</span>
                     </div>
                     <div>
-                      <span style={{ color: '#fca5a5', fontWeight: 700 }}>Message: </span>
-                      <span style={{ color: '#ffffff' }}>{lastSubmission.text}</span>
+                      <span style={{ color: 'var(--wb-danger)', fontWeight: 700 }}>Message: </span>
+                      <span style={{ color: 'var(--sos-text)' }}>{lastSubmission.text}</span>
                     </div>
                     <div>
-                      <span style={{ color: '#fca5a5', fontWeight: 700 }}>Timestamp: </span>
-                      <span style={{ color: '#ffffff' }}>{lastSubmission.timestamp}</span>
+                      <span style={{ color: 'var(--wb-danger)', fontWeight: 700 }}>Timestamp: </span>
+                      <span style={{ color: 'var(--sos-text)' }}>{lastSubmission.timestamp}</span>
                     </div>
                   </div>
                 )}
@@ -1127,7 +1139,7 @@ export default function MobileSosPage() {
                       borderRadius: 12,
                       backgroundColor: 'rgba(255, 255, 255, 0.15)',
                       border: '1px solid rgba(255, 255, 255, 0.25)',
-                      color: '#ffffff',
+                      color: 'var(--sos-text)',
                       fontWeight: 700,
                       fontSize: 14,
                       cursor: 'pointer',
@@ -1165,13 +1177,14 @@ export default function MobileSosPage() {
                       alignItems: 'center',
                       gap: 6,
                       backgroundColor: '#dc2626',
+                      '--sos-text': '#ffffff',
                       padding: '4px 10px',
                       borderRadius: 20,
                       fontSize: 11,
                       fontWeight: 800,
                       letterSpacing: 1,
                       textTransform: 'uppercase',
-                      color: '#ffffff',
+                      color: 'var(--sos-text)',
                       marginBottom: 8,
                     }}
                   >
@@ -1183,7 +1196,7 @@ export default function MobileSosPage() {
                     style={{
                       fontSize: 20,
                       fontWeight: 900,
-                      color: '#ffffff',
+                      color: 'var(--sos-text)',
                       margin: '0 0 4px',
                     }}
                   >
@@ -1192,7 +1205,7 @@ export default function MobileSosPage() {
                   <p
                     style={{
                       fontSize: 13,
-                      color: 'rgba(255, 255, 255, 0.75)',
+                      color: 'var(--sos-muted)',
                       margin: 0,
                     }}
                   >
@@ -1203,7 +1216,7 @@ export default function MobileSosPage() {
                 {/* Confirmed Location snippet */}
                 <div
                   style={{
-                    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                    backgroundColor: 'var(--sos-field)',
                     borderRadius: 12,
                     padding: '10px 12px',
                     display: 'flex',
@@ -1227,14 +1240,14 @@ export default function MobileSosPage() {
                     <circle cx="12" cy="10" r="3" />
                   </svg>
                   <div style={{ flex: 1, overflow: 'hidden' }}>
-                    <div style={{ fontSize: 10, color: '#fca5a5', fontWeight: 700, textTransform: 'uppercase' }}>
+                    <div style={{ fontSize: 10, color: 'var(--wb-danger)', fontWeight: 700, textTransform: 'uppercase' }}>
                       Transmitting From (Harris County)
                     </div>
                     <div
                       style={{
                         fontSize: 13,
                         fontWeight: 600,
-                        color: '#ffffff',
+                        color: 'var(--sos-text)',
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
@@ -1251,7 +1264,7 @@ export default function MobileSosPage() {
                     style={{
                       fontSize: 11,
                       fontWeight: 700,
-                      color: 'rgba(255, 255, 255, 0.8)',
+                      color: 'var(--sos-muted)',
                       marginBottom: 6,
                       textTransform: 'uppercase',
                       letterSpacing: 0.5,
@@ -1266,11 +1279,11 @@ export default function MobileSosPage() {
                         type="button"
                         onClick={() => handleAddTag(tag)}
                         style={{
-                          background: 'rgba(255, 255, 255, 0.1)',
+                          background: 'var(--sos-field)',
                           border: '1px solid rgba(255, 255, 255, 0.2)',
                           borderRadius: 16,
                           padding: '5px 10px',
-                          color: '#ffffff',
+                          color: 'var(--sos-text)',
                           fontSize: 12,
                           fontWeight: 500,
                           cursor: 'pointer',
@@ -1292,7 +1305,7 @@ export default function MobileSosPage() {
                       fontWeight: 800,
                       letterSpacing: 0.8,
                       textTransform: 'uppercase',
-                      color: '#ffffff',
+                      color: 'var(--sos-text)',
                     }}
                   >
                     Situation Description & Needs:
@@ -1306,11 +1319,11 @@ export default function MobileSosPage() {
                     style={{
                       width: '100%',
                       boxSizing: 'border-box',
-                      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                      backgroundColor: 'var(--sos-field)',
                       border: '1.5px solid rgba(255, 255, 255, 0.25)',
                       borderRadius: 14,
                       padding: '12px 14px',
-                      color: '#ffffff',
+                      color: 'var(--sos-text)',
                       fontSize: 15,
                       lineHeight: 1.4,
                       outline: 'none',
@@ -1353,7 +1366,7 @@ export default function MobileSosPage() {
                       borderRadius: 14,
                       backgroundColor: 'rgba(255, 255, 255, 0.12)',
                       border: '1px solid rgba(255, 255, 255, 0.2)',
-                      color: '#ffffff',
+                      color: 'var(--sos-text)',
                       fontWeight: 700,
                       fontSize: 14,
                       cursor: isSubmitting ? 'not-allowed' : 'pointer',
@@ -1363,7 +1376,7 @@ export default function MobileSosPage() {
                   </button>
 
                   <button
-                    type="submit"
+                    type="submit" className="sos-always-white"
                     disabled={isSubmitting || !isActive}
                     style={{
                       flex: 2,
@@ -1372,7 +1385,7 @@ export default function MobileSosPage() {
                       backgroundColor: '#ef4444',
                       backgroundImage: 'linear-gradient(135deg, #ef4444 0%, #dc2626 50%, #b91c1c 100%)',
                       border: '2px solid #ffffff',
-                      color: '#ffffff',
+                      color: 'var(--sos-text)',
                       fontWeight: 900,
                       fontSize: 15,
                       letterSpacing: 0.8,

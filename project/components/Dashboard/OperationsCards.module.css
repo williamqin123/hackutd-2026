@@ -9,8 +9,10 @@
   margin: 0;
   padding: 22px;
   border-radius: 24px;
-  background: #fff;
-  color: #122638;
+  background: var(--wb-surface);
+  color: var(--wb-text);
+  border: 1px solid var(--wb-border);
+  box-shadow: var(--wb-panel-shadow);
 }
 
 .card h2 {
@@ -41,13 +43,13 @@
 
 .capabilities {
   display: block;
-  color: #64768a;
+  color: var(--wb-muted);
   font-size: 11px;
 }
 
 .free {
   flex-shrink: 0;
-  color: #107c83;
+  color: var(--wb-accent);
   white-space: nowrap;
 }
 
@@ -65,19 +67,19 @@
 }
 
 .event time {
-  color: #64768a;
+  color: var(--wb-muted);
   font-variant-numeric: tabular-nums;
 }
 
 .empty {
   margin: 0;
-  color: #64768a;
+  color: var(--wb-muted);
   font-size: 13px;
 }
 
 .note {
   margin: 14px 0 0;
-  color: #64768a;
+  color: var(--wb-muted);
   font-size: 11px;
 }
 
@@ -98,7 +100,7 @@
 
 .full {
   flex-shrink: 0;
-  color: #b82e29;
+  color: var(--wb-danger);
 }
 
 .occupancy {
@@ -106,5 +108,5 @@
   width: 100%;
   height: 6px;
   margin-top: 8px;
-  accent-color: #107c83;
+  accent-color: var(--wb-accent);
 }

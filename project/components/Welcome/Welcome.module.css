@@ -7,8 +7,9 @@
   min-height: 100dvh;
   margin: 0;
   padding: 32px clamp(20px, 5vw, 72px);
-  background: #edf2f6;
-  color: #122638;
+  background: var(--wb-page-background);
+  background-size: auto, 40px 40px, 40px 40px, auto;
+  color: var(--wb-text);
   font-family: Arial, Helvetica, sans-serif;
 }
 
@@ -26,8 +27,8 @@
   width: 46px;
   height: 46px;
   border-radius: 14px;
-  background: #107c83;
-  color: white;
+  background: var(--wb-accent);
+  color: var(--wb-on-accent);
   font-size: 34px;
   line-height: 1;
 }
@@ -44,8 +45,8 @@
   display: inline-block;
   padding: 8px 14px;
   border-radius: 999px;
-  background: #ddf2ef;
-  color: #106f62;
+  background: var(--wb-success-soft);
+  color: var(--wb-success);
   font-size: 12px;
   font-weight: 700;
 }
@@ -60,7 +61,7 @@
 .intro {
   max-width: 540px;
   margin: 0 auto;
-  color: #64768a;
+  color: var(--wb-muted);
   font-size: 16px;
   line-height: 1.7;
 }
@@ -78,10 +79,10 @@
   flex-direction: column;
   align-items: flex-start;
   padding: 32px;
-  border: 1px solid transparent;
+  border: 1px solid var(--wb-border);
   border-radius: 28px;
-  background: white;
-  color: #122638;
+  background: var(--wb-surface);
+  color: var(--wb-text);
   text-align: left;
   text-decoration: none;
   transition: border-color 150ms ease, box-shadow 150ms ease;
@@ -89,17 +90,17 @@
 
 .sosCard:hover {
   border-color: #e8aaa7;
-  box-shadow: 0 8px 28px #1226380a;
+  box-shadow: 0 8px 28px var(--wb-text)0a;
 }
 
 .dashboardCard:hover {
   border-color: #8bc6c8;
-  box-shadow: 0 8px 28px #1226380a;
+  box-shadow: 0 8px 28px var(--wb-text)0a;
 }
 
 .sosCard:focus-visible,
 .dashboardCard:focus-visible {
-  outline: 3px solid #107c83;
+  outline: 3px solid var(--wb-accent);
   outline-offset: 5px;
 }
 
@@ -113,15 +114,15 @@
 }
 
 .sosIcon {
-  background: #fde5e3;
-  color: #b82e29;
+  background: var(--wb-danger-soft);
+  color: var(--wb-danger);
   font-size: 17px;
   font-weight: 800;
 }
 
 .dashboardIcon {
-  background: #ddf2ef;
-  color: #107c83;
+  background: var(--wb-success-soft);
+  color: var(--wb-accent);
 }
 
 .choices h2 {
@@ -132,7 +133,7 @@
 
 .choices p {
   margin: 0 0 28px;
-  color: #64768a;
+  color: var(--wb-muted);
   font-size: 14px;
   line-height: 1.7;
 }
@@ -147,22 +148,23 @@
   margin-top: auto;
   padding: 14px 18px;
   border-radius: 12px;
-  color: white;
+  color: var(--wb-on-accent);
   font-size: 14px;
   font-weight: 700;
 }
 
 .sosAction {
   background: #b82e29;
+  color: white;
 }
 
 .dashboardAction {
-  background: #107c83;
+  background: var(--wb-accent);
 }
 
 .note {
   margin: 28px 0 0;
-  color: #64768a;
+  color: var(--wb-muted);
   font-size: 12px;
 }
 

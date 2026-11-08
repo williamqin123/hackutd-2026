@@ -606,8 +606,8 @@ export default function FloodMap({
           width: "100%",
           borderRadius: 12,
           // Do NOT use overflow:hidden — it clips Leaflet popups.
-          border: "1px solid #cbd5e1",
-          background: "#e2e8f0",
+          border: "1px solid var(--wb-border)",
+          background: "var(--wb-raised)",
         }}
       />
 

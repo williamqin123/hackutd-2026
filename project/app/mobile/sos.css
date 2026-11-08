@@ -67,8 +67,8 @@
 /* Page & Body Overrides for Mobile Full-Bleed */
 html:has(.mobile-sos-root),
 body:has(.mobile-sos-root) {
-  background-color: #450a0a !important;
-  background: #450a0a !important;
+  background-color: var(--sos-page-bg) !important;
+  background: var(--sos-page-bg) !important;
   margin: 0 !important;
   padding: 0 !important;
   width: 100% !important;
@@ -84,9 +84,9 @@ main.mobile-sos-root {
   max-width: 100% !important;
   margin: 0 !important;
   padding: 16px 20px 24px !important;
-  background: radial-gradient(ellipse at 50% 25%, #ef4444 0%, #dc2626 35%, #991b1b 75%, #450a0a 100%);
-  background-color: #450a0a;
-  color: #ffffff;
+  background: var(--sos-page-image);
+  background-color: var(--sos-page-bg);
+  color: var(--sos-text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   display: flex;
   flex-direction: column;
@@ -155,7 +155,7 @@ main.mobile-sos-root {
   font-weight: 700;
   letter-spacing: 1.2px;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--sos-muted);
 }
 
 .sos-grid-badge {
@@ -164,8 +164,8 @@ main.mobile-sos-root {
   letter-spacing: 1px;
   padding: 3px 8px;
   border-radius: 20px;
-  background-color: rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  background-color: var(--sos-panel);
+  border: 1px solid var(--sos-line);
   text-transform: uppercase;
 }
 
@@ -180,7 +180,7 @@ main.mobile-sos-root {
 
 .sos-subtitle {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--sos-muted);
   margin: 0;
   text-align: center;
 }
@@ -189,10 +189,10 @@ main.mobile-sos-root {
 .sos-geo-section {
   width: 100%;
   max-width: 440px;
-  background-color: rgba(0, 0, 0, 0.42);
+  background-color: var(--sos-panel);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  border: 1px solid var(--sos-line);
   border-radius: 20px;
   padding: 16px;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
@@ -213,7 +213,7 @@ main.mobile-sos-root {
   font-weight: 800;
   letter-spacing: 1px;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.95);
+  color: var(--sos-muted);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -221,7 +221,7 @@ main.mobile-sos-root {
 
 .sos-geo-area-tag {
   font-size: 11px;
-  color: #fef08a;
+  color: var(--wb-warning);
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -241,11 +241,11 @@ main.mobile-sos-root {
 .sos-geo-input {
   width: 100%;
   box-sizing: border-box;
-  background-color: rgba(255, 255, 255, 0.14);
-  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  background-color: var(--sos-field);
+  border: 1.5px solid var(--sos-line);
   border-radius: 12px;
   padding: 12px 14px;
-  color: #ffffff;
+  color: var(--sos-text);
   font-size: 14px;
   font-weight: 600;
   outline: none;
@@ -253,7 +253,7 @@ main.mobile-sos-root {
 }
 
 .sos-geo-input:focus {
-  border-color: #ffffff;
+  border-color: var(--sos-text);
   background-color: rgba(255, 255, 255, 0.22);
 }
 
@@ -263,7 +263,7 @@ main.mobile-sos-root {
   justify-content: center;
   gap: 6px;
   padding: 0 14px;
-  background-color: #ffffff;
+  background-color: var(--sos-text);
   color: #991b1b;
   border: none;
   border-radius: 12px;
@@ -276,8 +276,8 @@ main.mobile-sos-root {
 }
 
 .sos-gps-btn.locating {
-  background-color: rgba(255, 255, 255, 0.18);
-  color: #ffffff;
+  background-color: var(--sos-field);
+  color: var(--sos-text);
   cursor: wait;
 }
 
@@ -286,19 +286,19 @@ main.mobile-sos-root {
   align-items: center;
   justify-content: space-between;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--sos-muted);
 }
 
 .sos-coords-label {
   font-size: 11px;
-  color: #e2e8f0;
+  color: var(--sos-muted);
 }
 
 .sos-shuffle-btn {
-  background: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: var(--sos-field);
+  border: 1px solid var(--sos-line);
   border-radius: 8px;
-  color: #ffffff;
+  color: var(--sos-text);
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
@@ -310,7 +310,7 @@ main.mobile-sos-root {
 }
 
 .sos-shuffle-btn:hover {
-  background: rgba(255, 255, 255, 0.25);
+  background: var(--sos-field);
 }
 
 .sos-geo-error {
@@ -370,7 +370,7 @@ main.mobile-sos-root {
   border-radius: 50%;
   background: radial-gradient(circle at 36% 32%, #ff4d4d 0%, #dc2626 50%, #881337 100%);
   border: 5px solid #ffffff;
-  color: #ffffff;
+  color: var(--sos-text);
   cursor: pointer;
   display: flex;
   flex-direction: column;
@@ -406,7 +406,7 @@ main.mobile-sos-root {
   font-weight: 800;
   letter-spacing: 1.8px;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.95);
+  color: var(--sos-muted);
   text-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
 }
 
@@ -423,11 +423,11 @@ main.mobile-sos-root {
 }
 
 .sos-footer-card {
-  background-color: rgba(0, 0, 0, 0.32);
+  background-color: var(--sos-panel);
   backdrop-filter: blur(8px);
   border-radius: 14px;
   padding: 10px 16px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid var(--sos-line);
   width: 100%;
   box-sizing: border-box;
 }
@@ -436,18 +436,18 @@ main.mobile-sos-root {
   font-size: 13px;
   font-weight: 700;
   margin: 0 0 4px;
-  color: #ffffff;
+  color: var(--sos-text);
 }
 
 .sos-footer-desc {
   font-size: 11px;
   margin: 0;
-  color: rgba(255, 255, 255, 0.75);
+  color: var(--sos-muted);
 }
 
 .sos-counters-row {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--sos-muted);
   display: flex;
   align-items: center;
   gap: 12px;
@@ -493,8 +493,8 @@ main.mobile-sos-root {
 .sos-modal-card {
   width: 100%;
   max-width: 440px;
-  background-color: #170505;
-  background-image: radial-gradient(circle at top right, #3b0707 0%, #170505 100%);
+  background-color: var(--sos-panel);
+  background-image: var(--sos-modal-image);
   border: 1.5px solid rgba(239, 68, 68, 0.45);
   border-radius: 24px;
   padding: 24px 20px;
@@ -510,21 +510,21 @@ main.mobile-sos-root {
   position: absolute;
   top: 16px;
   right: 16px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--sos-field);
   border: none;
   border-radius: 50%;
   width: 32px;
   height: 32px;
   display: grid;
   place-items: center;
-  color: #ffffff;
+  color: var(--sos-text);
   cursor: pointer;
   font-size: 16px;
   transition: background-color 0.15s;
 }
 
 .sos-modal-close-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--sos-field);
 }
 
 .sos-form {
@@ -544,7 +544,7 @@ main.mobile-sos-root {
   font-weight: 800;
   letter-spacing: 1px;
   text-transform: uppercase;
-  color: #ffffff;
+  color: var(--sos-text);
   margin-bottom: 8px;
 }
 
@@ -552,35 +552,35 @@ main.mobile-sos-root {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background-color: #ffffff;
+  background-color: var(--sos-text);
 }
 
 .sos-modal-title {
   font-size: 20px;
   font-weight: 900;
-  color: #ffffff;
+  color: var(--sos-text);
   margin: 0 0 4px;
 }
 
 .sos-modal-subtitle {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.75);
+  color: var(--sos-muted);
   margin: 0;
 }
 
 .sos-location-preview-box {
-  background-color: rgba(255, 255, 255, 0.08);
+  background-color: var(--sos-field);
   border-radius: 12px;
   padding: 10px 12px;
   display: flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid var(--sos-line);
 }
 
 .sos-loc-preview-title {
   font-size: 10px;
-  color: #fca5a5;
+  color: var(--wb-danger);
   font-weight: 700;
   text-transform: uppercase;
 }
@@ -588,7 +588,7 @@ main.mobile-sos-root {
 .sos-loc-preview-value {
   font-size: 13px;
   font-weight: 600;
-  color: #ffffff;
+  color: var(--sos-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -603,7 +603,7 @@ main.mobile-sos-root {
 .sos-quick-tags-title {
   font-size: 11px;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--sos-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -615,11 +615,11 @@ main.mobile-sos-root {
 }
 
 .sos-tag-chip {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: var(--sos-field);
+  border: 1px solid var(--sos-line);
   border-radius: 16px;
   padding: 5px 10px;
-  color: #ffffff;
+  color: var(--sos-text);
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
@@ -628,7 +628,7 @@ main.mobile-sos-root {
 }
 
 .sos-tag-chip:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--sos-field);
 }
 
 .sos-textarea-wrap {
@@ -642,17 +642,17 @@ main.mobile-sos-root {
   font-weight: 800;
   letter-spacing: 0.8px;
   text-transform: uppercase;
-  color: #ffffff;
+  color: var(--sos-text);
 }
 
 .sos-textarea {
   width: 100%;
   box-sizing: border-box;
-  background-color: rgba(0, 0, 0, 0.5);
-  border: 1.5px solid rgba(255, 255, 255, 0.25);
+  background-color: var(--sos-field);
+  border: 1.5px solid var(--sos-line);
   border-radius: 14px;
   padding: 12px 14px;
-  color: #ffffff;
+  color: var(--sos-text);
   font-size: 15px;
   line-height: 1.4;
   outline: none;
@@ -685,8 +685,8 @@ main.mobile-sos-root {
   padding: 14px;
   border-radius: 14px;
   background-color: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #ffffff;
+  border: 1px solid var(--sos-line);
+  color: var(--sos-text);
   font-weight: 700;
   font-size: 14px;
   cursor: pointer;
@@ -694,7 +694,7 @@ main.mobile-sos-root {
 }
 
 .sos-cancel-btn:hover {
-  background-color: rgba(255, 255, 255, 0.18);
+  background-color: var(--sos-field);
 }
 
 .sos-submit-btn {
@@ -704,7 +704,7 @@ main.mobile-sos-root {
   background-color: #ef4444;
   background-image: linear-gradient(135deg, #ef4444 0%, #dc2626 50%, #b91c1c 100%);
   border: 2px solid #ffffff;
-  color: #ffffff;
+  color: var(--sos-text);
   font-weight: 900;
   font-size: 15px;
   letter-spacing: 0.8px;
@@ -745,9 +745,9 @@ main.mobile-sos-root {
 
 .sos-success-card {
   width: 100%;
-  background-color: rgba(0, 0, 0, 0.45);
+  background-color: var(--sos-panel);
   border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid var(--sos-line);
   padding: 14px;
   text-align: left;
   box-sizing: border-box;
@@ -758,17 +758,17 @@ main.mobile-sos-root {
 }
 
 .sos-success-row-label-green {
-  color: #86efac;
+  color: var(--wb-success);
   font-weight: 800;
 }
 
 .sos-success-row-label {
-  color: #fca5a5;
+  color: var(--wb-danger);
   font-weight: 700;
 }
 
 .sos-success-row-value {
-  color: #ffffff;
+  color: var(--sos-text);
 }
 
 .sos-success-actions {
@@ -783,8 +783,8 @@ main.mobile-sos-root {
   padding: 12px;
   border-radius: 12px;
   background-color: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  color: #ffffff;
+  border: 1px solid var(--sos-line);
+  color: var(--sos-text);
   font-weight: 700;
   font-size: 14px;
   cursor: pointer;
@@ -808,3 +808,8 @@ main.mobile-sos-root {
 .sos-radar-spinner {
   animation: radarSweep 1s linear infinite;
 }
+
+/* Preserve emergency contrast in both themes. */
+.sos-giant-button, .sos-btn-subtext, .sos-submit-btn, .sos-distress-badge { color: #fff; }
+html[data-theme="light"] .sos-title { text-shadow: none; }
+html[data-theme="light"] .sos-form-error, html[data-theme="light"] .sos-geo-error { color: var(--wb-danger); background: var(--wb-danger-soft); }

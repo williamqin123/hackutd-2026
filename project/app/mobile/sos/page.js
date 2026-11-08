@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSpacetimeDB, useTable } from "spacetimedb/react";
 import { tables } from "../../../src/module_bindings";
+import ThemeToggle from "../../../components/ThemeToggle";
 import "../sos.css";
 
 // Diverse curated locations across Harris County (flood areas during Hurricane Harvey)
@@ -141,7 +142,10 @@ export default function MobileSosPage() {
   const [rescueRequests] = useTable(tables.rescueRequest);
 
   // Initialize with a random location in Harris County
-  const [randomInit] = useState(() => getRandomHarrisCountyLocation());
+  const [randomInit] = useState(() => {
+    const { address, name, lat, lon } = HARRIS_COUNTY_LOCATIONS[0];
+    return { label: `${address} (${lat}, ${lon})`, name, lat, lon };
+  });
   const [location, setLocation] = useState(randomInit.label);
   const [coords, setCoords] = useState({
     lat: randomInit.lat,
@@ -162,6 +166,15 @@ export default function MobileSosPage() {
   const [lastSubmission, setLastSubmission] = useState(null);
   const [submitError, setSubmitError] = useState(null);
 
+  // Keep the server and first browser render identical, then choose a demo
+  // location. A hydration reset would also discard the restored theme.
+  useEffect(() => {
+    const next = getRandomHarrisCountyLocation();
+    setLocation(next.label);
+    setCoords({ lat: next.lat, lon: next.lon });
+    setActiveAreaName(next.name);
+  }, []);
+
   // Quick emergency tags
   const quickTags = [
     "🌊 Rising Floodwater",
@@ -176,8 +189,8 @@ export default function MobileSosPage() {
   useEffect(() => {
     const prevBodyBg = document.body.style.backgroundColor;
     const prevHtmlBg = document.documentElement.style.backgroundColor;
-    document.body.style.backgroundColor = "#450a0a";
-    document.documentElement.style.backgroundColor = "#450a0a";
+    document.body.style.backgroundColor = "var(--sos-page-bg)";
+    document.documentElement.style.backgroundColor = "var(--sos-page-bg)";
     return () => {
       document.body.style.backgroundColor = prevBodyBg;
       document.documentElement.style.backgroundColor = prevHtmlBg;
@@ -411,6 +424,7 @@ export default function MobileSosPage() {
         <p className="sos-subtitle">
           Direct link to The WaterBoard & Rescue Dispatch
         </p>
+        <ThemeToggle />
       </header>
 
       <section className="sos-geo-section">
