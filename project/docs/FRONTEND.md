@@ -243,3 +243,36 @@ Only works if that database has The WaterBoard module published.
   ```
 
 - Architecture / threat math / table sources: [`THE_WATERBOARD.md`](./THE_WATERBOARD.md).
+
+
+## Demo shelter and SOS data
+
+The original CSV also includes eight fictional teams in `demo_team_*` columns.
+Run `python3 scripts/import-csv-teams.py` from `project/` to import them into
+`hack-utd-2026-y64f9` through the existing `create_rescue_team` reducer. The script
+validates the rows and skips existing team names on retries. It does not assign
+teams or modify the teammate's database. The name check is intended for a single
+developer import; it is not a transactional uniqueness constraint for concurrent imports.
+
+### Backend import reducer
+
+`importCsvData({ shelters, requests })` is defined in `spacetimedb/src/backend.js`.
+Shelters have `id`, `name`, `capacity`, and `occupied`. Requests have `sourceId`
+(a stable CSV ID), `lat`, `lon`, `peopleCount`, `medicalUrgent`, `stranded`,
+`needsTransport`, `description`, and `waitMinutes`.
+
+The reducer validates the full batch (up to 1000 records of each kind), inserts
+only new IDs, and records CSV-to-request mappings in the private
+`csv_request_import` table. Reimporting never overwrites shelter occupancy or
+request status. Priority is calculated on the backend; the initial timestamp is
+the reducer timestamp minus the CSV wait. A successful import with new records
+adds one shared activity event. Reducers are transactional and do not return data;
+clients read results through table subscriptions.
+
+Verification: `node --test spacetimedb/test/csv-import.test.mjs`.
+The reducer and client bindings are prepared locally. The dashboard now reads SOS requests and shelters exclusively through backend
+subscriptions. Calling the reducer from the frontend import control is the next step.
+
+The original `harvey_2017_houston_harris_flood_marks.csv` in the HACK UTD workspace root now also contains fictional demo fields. Historical observation columns are preserved. `demo_data_source=fictional_demo` identifies added synthetic data; `demo_shelter_*` fields describe shelters, and `demo_sos_*` fields describe requests. `demo_sos_waitMinutes` sets the initial wait when the page loads. Critical counts derive from medicalUrgent + stranded; awaiting-team counts derive from pending requests.
+
+`/api/demo-data` reads that original file on each request. Run Next.js from `project/`, retaining the workspace directory structure; hosting must also provide the original CSV three directories above `project/`. Refresh the dashboard after editing the CSV. CSV SOS records must be imported into SpacetimeDB before they appear in the dashboard or can be assigned to a team. The dashboard has no separate CSV overlay or toggle.

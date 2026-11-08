@@ -1,0 +1,69 @@
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.label {
+  margin-right: 4px;
+  color: #64768a;
+  font-size: 12px;
+}
+
+.controls button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  padding: 9px 12px;
+  border: 1px solid #dfe7ee;
+  border-radius: 10px;
+  background: #f5f7fa;
+  color: #526579;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.controls button[aria-pressed="true"] {
+  border-color: #b2dcd8;
+  background: #e5f4f1;
+  color: #106f62;
+}
+
+.controls button:hover:not(:disabled) {
+  border-color: #107c83;
+}
+
+.controls button:focus-visible {
+  outline: 2px solid #107c83;
+  outline-offset: 3px;
+}
+
+.controls button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.4;
+}
+
+.controls button[aria-pressed="true"] .dot {
+  opacity: 1;
+}

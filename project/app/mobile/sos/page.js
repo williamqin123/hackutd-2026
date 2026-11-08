@@ -645,7 +645,13 @@ export default function MobileSosPage() {
                   <h2 id="dialog-title" className="sos-modal-title">
                     SOS Transmitted Successfully!
                   </h2>
-                  <p className="sos-modal-subtitle">
+                  <p
+                    style={{
+                      fontSize: 13,
+                      color: 'rgba(255, 255, 255, 0.85)',
+                      margin: 0,
+                    }}
+                  >
                     Created <strong>rescue_request</strong> record on The WaterBoard dispatch & saved to <strong>sos</strong> table.
                   </p>
                 </div>

@@ -20,6 +20,34 @@ export const ActivityEvent = __t.object("ActivityEvent", {
 });
 export type ActivityEvent = __Infer<typeof ActivityEvent>;
 
+export const CsvRequestImport = __t.object("CsvRequestImport", {
+  sourceId: __t.string(),
+  requestId: __t.u64(),
+  importedAt: __t.timestamp(),
+});
+export type CsvRequestImport = __Infer<typeof CsvRequestImport>;
+
+export const CsvRequestInput = __t.object("CsvRequestInput", {
+  sourceId: __t.string(),
+  lat: __t.f64(),
+  lon: __t.f64(),
+  peopleCount: __t.u32(),
+  medicalUrgent: __t.bool(),
+  stranded: __t.bool(),
+  needsTransport: __t.bool(),
+  description: __t.string(),
+  waitMinutes: __t.u32(),
+});
+export type CsvRequestInput = __Infer<typeof CsvRequestInput>;
+
+export const CsvShelterInput = __t.object("CsvShelterInput", {
+  id: __t.string(),
+  name: __t.string(),
+  capacity: __t.u32(),
+  occupied: __t.u32(),
+});
+export type CsvShelterInput = __Infer<typeof CsvShelterInput>;
+
 export const DispatchAssignment = __t.object("DispatchAssignment", {
   id: __t.u64(),
   requestId: __t.u64(),
@@ -119,6 +147,15 @@ export const RescueTeam = __t.object("RescueTeam", {
   updatedAt: __t.timestamp(),
 });
 export type RescueTeam = __Infer<typeof RescueTeam>;
+
+export const Shelter = __t.object("Shelter", {
+  id: __t.string(),
+  name: __t.string(),
+  capacity: __t.u32(),
+  occupied: __t.u32(),
+  updatedAt: __t.timestamp(),
+});
+export type Shelter = __Infer<typeof Shelter>;
 
 export const SimulationState = __t.object("SimulationState", {
   id: __t.u64(),

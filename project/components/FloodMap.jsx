@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import MapControls from "./MapControls";
 
 const LEVEL_COLORS = {
   none: "#94a3b8",
@@ -20,21 +21,6 @@ const LEVEL_FILL = {
   critical: 0.22,
 };
 
-/** Victim urgency palette — separate from flood LEVEL_COLORS. */
-const SOS_URGENCY = {
-  critical: { bg: "#b91c1c", border: "#7f1d1d" }, // score >= 1000
-  high: { bg: "#ea580c", border: "#9a3412" }, // >= 500
-  medium: { bg: "#ca8a04", border: "#854d0e" }, // >= 200
-  low: { bg: "#64748b", border: "#334155" },
-};
-
-function sosUrgency(score) {
-  if (score >= 1000) return SOS_URGENCY.critical;
-  if (score >= 500) return SOS_URGENCY.high;
-  if (score >= 200) return SOS_URGENCY.medium;
-  return SOS_URGENCY.low;
-}
-
 function microsToLabel(micros) {
   if (micros === undefined || micros === null) return "—";
   const ms = Number(micros / 1000n);
@@ -42,9 +28,13 @@ function microsToLabel(micros) {
 }
 
 /**
- * Live Houston flood map for The WaterBoard.
+ * Live Houston flood map for WaterBoard.
  * Layers: OSM basemap, storm track, gauge flood zones, active flood sites.
  */
+const OPEN_ASSIGNMENT = new Set(["recommended", "confirmed", "en_route"]);
+
+const SOS_HALO_METERS = 1800;
+
 export default function FloodMap({
   simTimeMicros,
   stormPoints = [],
@@ -55,10 +45,37 @@ export default function FloodMap({
   teams = [],
   assignments = [],
   selectedRequestId = null,
+  onSelectRequest,
 }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const layersRef = useRef(null);
+  const onSelectRequestRef = useRef(onSelectRequest);
+  onSelectRequestRef.current = onSelectRequest;
+  const [visibleLayers, setVisibleLayers] = useState({
+    teams: true,
+    sensors: true,
+    storm: true,
+  });
+  const requestLocations = requests
+    .filter((request) =>
+      ["pending", "recommended", "assigned"].includes(request.status) &&
+      Number.isFinite(request.lat) && Number.isFinite(request.lon) &&
+      Math.abs(request.lat) <= 90 && Math.abs(request.lon) <= 180)
+    .map((request) => [request.lat, request.lon]);
+
+  function centerHouston() {
+    mapRef.current?.setView([29.76, -95.37], 10);
+  }
+
+  function showAllRequests() {
+    if (!requestLocations.length) return;
+    mapRef.current?.fitBounds(requestLocations, { padding: [40, 40], maxZoom: 13 });
+  }
+
+  function toggleLayer(key) {
+    setVisibleLayers((current) => ({ ...current, [key]: !current[key] }));
+  }
 
   const stormPath = useMemo(() => {
     if (!simTimeMicros) return [];
@@ -116,6 +133,7 @@ export default function FloodMap({
       track: L.layerGroup().addTo(map),
       marks: L.layerGroup().addTo(map),
       units: L.layerGroup().addTo(map),
+      teamUnits: L.layerGroup().addTo(map),
       labels: L.layerGroup().addTo(map),
     };
     mapRef.current = map;
@@ -135,11 +153,30 @@ export default function FloodMap({
     const layers = layersRef.current;
     if (!map || !layers) return;
 
+    const groups = {
+      teams: [layers.teamUnits],
+      sensors: [layers.floods, layers.regions, layers.marks, layers.labels],
+      storm: [layers.track],
+    };
+    for (const [key, layerGroups] of Object.entries(groups)) {
+      for (const group of layerGroups) {
+        if (visibleLayers[key]) group.addTo(map);
+        else map.removeLayer(group);
+      }
+    }
+  }, [visibleLayers]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    const layers = layersRef.current;
+    if (!map || !layers) return;
+
     layers.regions.clearLayers();
     layers.floods.clearLayers();
     layers.track.clearLayers();
     layers.marks.clearLayers();
     layers.units.clearLayers();
+    layers.teamUnits.clearLayers();
     layers.labels.clearLayers();
 
     // USGS gages: 4 imported sensors. Color follows live stage ratio — not hardcoded.
@@ -270,119 +307,102 @@ export default function FloodMap({
       layers.marks.addLayer(marker);
     }
 
-    const openStatuses = new Set(["pending", "recommended", "assigned"]);
-    const rankedOpen = [...requests]
-      .filter((r) => openStatuses.has(r.status))
-      .sort((a, b) => b.priorityScore - a.priorityScore);
-    const rankById = new Map(
-      rankedOpen.map((r, i) => [r.id.toString(), i + 1]),
+    // Active SOS only — completed/cancelled leave the map so teams don't overlap ghosts.
+    const activeRequests = requests.filter((req) =>
+      ["pending", "recommended", "assigned"].includes(req.status),
+    );
+    const teamById = new Map(teams.map((team) => [String(team.id), team]));
+    const pairedByRequest = new Map();
+    for (const assignment of assignments) {
+      if (!OPEN_ASSIGNMENT.has(assignment.status)) continue;
+      const request = activeRequests.find((r) => String(r.id) === String(assignment.requestId));
+      const team = teamById.get(String(assignment.teamId));
+      if (!request || !team) continue;
+      pairedByRequest.set(String(request.id), { request, team, assignment });
+    }
+    const pairedTeamIds = new Set(
+      [...pairedByRequest.values()].map(({ team }) => String(team.id)),
     );
 
-    const teamById = new Map(teams.map((t) => [t.id.toString(), t]));
-    const requestById = new Map(requests.map((r) => [r.id.toString(), r]));
+    const selectRequest = (requestId) => {
+      onSelectRequestRef.current?.(String(requestId));
+    };
 
-    // Discrete TEAM↔SOS match lines (no live travel).
-    for (const a of assignments) {
-      if (a.status !== "recommended" && a.status !== "confirmed" && a.status !== "en_route") {
-        continue;
-      }
-      const team = teamById.get(a.teamId.toString());
-      const req = requestById.get(a.requestId.toString());
-      if (!team || !req) continue;
-      const isConfirmed = a.status === "confirmed" || a.status === "en_route";
-      L.polyline(
-        [
-          [team.lat, team.lon],
-          [req.lat, req.lon],
-        ],
-        {
-          color: isConfirmed ? "#0369a1" : "#94a3b8",
-          weight: isConfirmed ? 3 : 2,
-          opacity: isConfirmed ? 0.9 : 0.7,
-          dashArray: isConfirmed ? null : "6 6",
-        },
-      )
-        .bindTooltip(
-          `${team.name} → SOS #${req.id} · ${a.status}`,
-          { sticky: true, opacity: 0.95 },
-        )
+    const addSosHalo = (req, selected) => {
+      L.circle([req.lat, req.lon], {
+        radius: SOS_HALO_METERS,
+        color: selected ? "#16a34a" : "#b91c1c",
+        weight: selected ? 2 : 1.25,
+        opacity: selected ? 0.7 : 0.45,
+        fillColor: selected ? "#16a34a" : "#b91c1c",
+        fillOpacity: selected ? 0.14 : 0.08,
+        interactive: true,
+      })
+        .on("click", () => selectRequest(req.id))
         .addTo(layers.units);
-    }
+    };
 
-    for (const req of requests) {
-      const score = req.priorityScore ?? 0;
-      const urgency = sosUrgency(score);
-      const rank = rankById.get(req.id.toString());
-      const isSelected =
-        selectedRequestId != null &&
-        String(selectedRequestId) === String(req.id);
-      const isDone = req.status === "completed" || req.status === "cancelled";
-      const isAssigned = req.status === "assigned";
-      const opacity = isDone ? 0.4 : isAssigned ? 0.75 : 1;
-      const label = rank
-        ? `#${rank} SOS`
-        : isDone
-          ? "DONE"
-          : "SOS";
-      const border = isSelected ? "3px solid #fbbf24" : `2px solid ${urgency.border}`;
-      const flags = [
-        req.medicalUrgent ? "medical" : null,
-        req.stranded ? "stranded" : null,
-        req.needsTransport ? "transport" : null,
-        `${req.peopleCount ?? "?"} people`,
-      ]
-        .filter(Boolean)
-        .join(" · ");
-
+    for (const { request: req, team, assignment } of pairedByRequest.values()) {
+      const selected = String(selectedRequestId) === String(req.id);
+      addSosHalo(req, selected);
       L.marker([req.lat, req.lon], {
-        title: `SOS #${req.id}`,
-        zIndexOffset: isSelected ? 700 : 500 + (rank ? 50 - Math.min(rank, 49) : 0),
-        opacity,
+        title: `${team.name} → SOS #${req.id}`,
+        zIndexOffset: 600,
       })
         .setIcon(
           L.divIcon({
             className: "waterboard-divicon",
-            html: `<div style="background:${urgency.bg};color:white;border-radius:999px;padding:3px 8px;font:12px/1.2 system-ui;border:${border};box-shadow:0 1px 4px rgba(0,0,0,.4);opacity:${opacity}">${label}</div>`,
-            iconSize: [rank ? 52 : 40, 22],
-            iconAnchor: [rank ? 26 : 20, 11],
+            html:
+              `<div class="waterboard-pair${selected ? " waterboard-pair-selected" : ""}" title="${team.name} on SOS #${req.id}">` +
+              `<div class="waterboard-chip waterboard-chip-team">TEAM</div>` +
+              `<div class="waterboard-chip waterboard-chip-sos waterboard-chip-sos-active">SOS</div>` +
+              `</div>`,
+            iconSize: [56, 52],
+            iconAnchor: [28, 26],
           }),
         )
+        .on("click", () => selectRequest(req.id))
         .bindPopup(
-          `<strong>SOS #${req.id}</strong> · score ${score}<br/>` +
-            `<span style="text-transform:uppercase;font-weight:700">${req.status}</span>` +
-            (rank ? ` · queue #${rank}` : "") +
-            `<br/>${flags}<br/>` +
-            `${req.description ?? ""}`,
-          { maxWidth: 280, autoPan: true },
+          `<strong>${team.name}</strong> → SOS #${req.id}<br/>` +
+            `${assignment.status}<br/>${req.description}`,
+          { autoPan: true },
         )
         .addTo(layers.units);
     }
 
-    const redCrossIcon = L.icon({
-      iconUrl: "/redcross.png",
-      iconRetinaUrl: "/redcross.png",
-      iconSize: [28, 28],
-      iconAnchor: [14, 14],
-      popupAnchor: [0, -12],
-      className: "waterboard-redcross-icon",
-    });
+    for (const req of activeRequests) {
+      if (pairedByRequest.has(String(req.id))) continue;
+      const selected = String(selectedRequestId) === String(req.id);
+      addSosHalo(req, selected);
+      L.marker([req.lat, req.lon], { title: `SOS #${req.id}`, zIndexOffset: 500 })
+        .setIcon(
+          L.divIcon({
+            className: "waterboard-divicon",
+            html: `<div class="waterboard-chip waterboard-chip-sos waterboard-chip-solo${selected ? " waterboard-chip-selected" : ""}">SOS</div>`,
+            iconSize: [52, 28],
+            iconAnchor: [26, 14],
+          }),
+        )
+        .on("click", () => selectRequest(req.id))
+        .bindPopup(`SOS #${req.id}<br/>${req.description}<br/>${req.status}`, {
+          autoPan: true,
+        })
+        .addTo(layers.units);
+    }
 
     for (const team of teams) {
-      const busy = team.status === "busy";
-      L.marker([team.lat, team.lon], {
-        zIndexOffset: 400,
-        opacity: busy ? 0.55 : 1,
-        title: team.name,
-      })
-        .setIcon(redCrossIcon)
-        .bindPopup(
-          `<strong>${team.name}</strong><br/>${team.status}` +
-            (team.hasMedical ? " · medical" : "") +
-            (team.hasBoat ? " · boat" : "") +
-            `<br/>capacity ${team.capacity}`,
-          { autoPan: true },
+      if (pairedTeamIds.has(String(team.id))) continue;
+      L.marker([team.lat, team.lon], { zIndexOffset: 400 })
+        .setIcon(
+          L.divIcon({
+            className: "waterboard-divicon",
+            html: `<div class="waterboard-chip waterboard-chip-team waterboard-chip-solo">TEAM</div>`,
+            iconSize: [56, 28],
+            iconAnchor: [28, 14],
+          }),
         )
-        .addTo(layers.units);
+        .bindPopup(`${team.name}<br/>${team.status}`, { autoPan: true })
+        .addTo(layers.teamUnits);
     }
   }, [
     stormPath,
@@ -397,6 +417,7 @@ export default function FloodMap({
   ]);
 
   return (
+    <>
     <div className="waterboard-map-shell" style={{ position: "relative" }}>
       <style>{`
         .waterboard-map-shell .leaflet-container {
@@ -427,8 +448,70 @@ export default function FloodMap({
           border-top-color: rgba(15, 23, 42, 0.92);
         }
         .waterboard-divicon {
+          background: transparent !important;
+          border: 0 !important;
+        }
+        .waterboard-chip {
+          box-sizing: border-box;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: white;
+          padding: 0 8px;
+          font: 700 11px/1 system-ui, sans-serif;
+          letter-spacing: 0.02em;
+          border: 2px solid white;
+          box-shadow: 0 1px 4px rgba(0,0,0,.4);
+          text-align: center;
+          white-space: nowrap;
+        }
+        .waterboard-chip-solo.waterboard-chip-sos {
+          width: 52px;
+          height: 28px;
+          font-size: 12px;
+        }
+        .waterboard-chip-solo.waterboard-chip-team {
+          width: 56px;
+          height: 28px;
+          font-size: 12px;
+        }
+        .waterboard-chip-sos {
+          background: #b91c1c;
+          border-radius: 999px;
+        }
+        .waterboard-chip-sos-active {
+          background: #16a34a;
+          border-color: #bbf7d0;
+          box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.35), 0 1px 4px rgba(0,0,0,.35);
+        }
+        .waterboard-chip-selected {
+          box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.55), 0 1px 4px rgba(0,0,0,.4);
+        }
+        .waterboard-chip-team {
+          background: #0369a1;
+          border-radius: 6px;
+        }
+        .waterboard-pair {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 0;
+          width: 56px;
+          height: 52px;
           background: transparent;
-          border: 0;
+        }
+        .waterboard-pair .waterboard-chip {
+          width: 48px;
+          height: 24px;
+          font-size: 12px;
+        }
+        .waterboard-pair .waterboard-chip-team {
+          margin-bottom: -2px;
+          z-index: 1;
+        }
+        .waterboard-pair-selected .waterboard-chip-sos-active {
+          box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.55), 0 1px 4px rgba(0,0,0,.35);
         }
       `}</style>
 
@@ -489,9 +572,6 @@ export default function FloodMap({
           pointerEvents: "none",
         }}
       >
-        <div>
-          <strong>Sim time:</strong> {microsToLabel(simTimeMicros)}
-        </div>
         <div style={{ marginTop: 6 }}>
           {Object.entries(LEVEL_COLORS).map(([level, color]) => (
             <span key={level} style={{ marginRight: 8, whiteSpace: "nowrap" }}>
@@ -515,5 +595,13 @@ export default function FloodMap({
         </div>
       </div>
     </div>
+    <MapControls
+      onCenter={centerHouston}
+      onShowRequests={showAllRequests}
+      hasRequests={requestLocations.length > 0}
+      layers={visibleLayers}
+      onToggle={toggleLayer}
+    />
+    </>
   );
 }

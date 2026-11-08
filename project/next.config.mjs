@@ -1,4 +1,5 @@
 import path from 'path';
+import { PHASE_DEVELOPMENT_SERVER } from 'next/constants.js';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -11,4 +12,8 @@ const nextConfig = {
   outputFileTracingRoot: __dirname,
 };
 
-export default nextConfig;
+// Keep dev hot-reload files separate from production build output.
+export default (phase) => ({
+  ...nextConfig,
+  distDir: phase === PHASE_DEVELOPMENT_SERVER ? '.next-dev' : '.next',
+});
