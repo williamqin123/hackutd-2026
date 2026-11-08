@@ -4,7 +4,7 @@ export const EIGHT_HOUR_MICROS = 8n * HOUR_MICROS;
 export const SIM_START_MICROS = 1503619200000000n; // 2017-08-25T00:00:00Z
 export const SIM_END_MICROS = 1504310400000000n; // 2017-09-02T00:00:00Z
 export const PEAK_MICROS = 1503921600000000n; // 2017-08-28T12:00:00Z
-export const PLAY_INTERVAL_MS = 400;
+export const PLAY_INTERVAL_MS = 800;
 
 export function microsLabel(micros) {
   if (micros === undefined || micros === null) return "—";

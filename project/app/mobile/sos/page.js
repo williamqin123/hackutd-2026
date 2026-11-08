@@ -388,15 +388,6 @@ export default function MobileSosPage() {
         <h1 className="sos-title">
           Emergency Distress Beacon
         </h1>
-        <p
-          style={{
-            fontSize: 13,
-            color: 'rgba(255, 255, 255, 0.85)',
-            margin: 0,
-            textAlign: 'center',
-          }}
-        >
-          Direct link to WaterBoard & Rescue Dispatch
         <p className="sos-subtitle">
           Direct link to The WaterBoard & Rescue Dispatch
         </p>

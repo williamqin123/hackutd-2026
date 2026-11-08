@@ -329,8 +329,103 @@ function haversineKm(lat1, lon1, lat2, lon2) {
         Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
     return 2 * r * Math.asin(Math.sqrt(a));
 }
+
+const OPEN_ASSIGNMENT_STATUSES = new Set(["recommended", "confirmed", "en_route"]);
+
+function hasOpenAssignment(ctx, requestId) {
+    const key = requestId.toString();
+    for (const assignment of ctx.db.dispatchAssignment.iter()) {
+        if (assignment.requestId.toString() === key && OPEN_ASSIGNMENT_STATUSES.has(assignment.status)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * Nearest-first match with soft capability penalties (km-equivalent).
+ * A nearby capable-enough team beats a far "perfect" unit.
+ */
+function teamMatchScore(request, team) {
+    let score = haversineKm(team.lat, team.lon, request.lat, request.lon);
+    if (request.medicalUrgent && !team.hasMedical)
+        score += 25;
+    if (request.stranded && !team.hasBoat)
+        score += 15;
+    return score;
+}
+
+function sortTeamsForRequest(request, teams) {
+    return [...teams].sort((a, b) => teamMatchScore(request, a) - teamMatchScore(request, b));
+}
+
+const HOUSTON_TEAMS = [
+    { name: "Houston Unit 01 · Downtown", lat: 29.7604, lon: -95.3698, capacity: 6, hasMedical: true, hasBoat: true },
+    { name: "Houston Unit 02 · Meyerland", lat: 29.6741, lon: -95.4678, capacity: 5, hasMedical: false, hasBoat: true },
+    { name: "Houston Unit 03 · Cypress", lat: 29.9691, lon: -95.6972, capacity: 4, hasMedical: true, hasBoat: false },
+    { name: "Houston Unit 04 · Greenspoint", lat: 29.9167, lon: -95.4089, capacity: 4, hasMedical: false, hasBoat: false },
+    { name: "Houston Unit 05 · Kingwood", lat: 30.0505, lon: -95.1847, capacity: 5, hasMedical: true, hasBoat: true },
+    { name: "Houston Unit 06 · Memorial", lat: 29.7628, lon: -95.5342, capacity: 6, hasMedical: true, hasBoat: false },
+    { name: "Houston Unit 07 · Heights", lat: 29.7997, lon: -95.3982, capacity: 4, hasMedical: false, hasBoat: false },
+    { name: "Houston Unit 08 · Addicks", lat: 29.7858, lon: -95.7725, capacity: 5, hasMedical: false, hasBoat: true },
+    { name: "Houston Unit 09 · Bellaire", lat: 29.7058, lon: -95.4588, capacity: 4, hasMedical: true, hasBoat: false },
+    { name: "Houston Unit 10 · Pasadena", lat: 29.6911, lon: -95.2091, capacity: 5, hasMedical: false, hasBoat: true },
+    { name: "Houston Unit 11 · Baytown", lat: 29.7355, lon: -94.9774, capacity: 4, hasMedical: false, hasBoat: true },
+    { name: "Houston Unit 12 · Humble", lat: 29.9988, lon: -95.2622, capacity: 4, hasMedical: false, hasBoat: false },
+    { name: "Houston Unit 13 · Spring Branch", lat: 29.8055, lon: -95.5133, capacity: 4, hasMedical: true, hasBoat: false },
+    { name: "Houston Unit 14 · Galleria", lat: 29.739, lon: -95.461, capacity: 5, hasMedical: true, hasBoat: false },
+    { name: "Houston Unit 15 · Hobby", lat: 29.645, lon: -95.278, capacity: 5, hasMedical: false, hasBoat: true },
+];
+
+function insertHoustonTeams(ctx) {
+    for (const tdef of HOUSTON_TEAMS) {
+        ctx.db.rescueTeam.insert({
+            id: 0n,
+            name: tdef.name,
+            lat: tdef.lat,
+            lon: tdef.lon,
+            capacity: tdef.capacity,
+            hasMedical: tdef.hasMedical,
+            hasBoat: tdef.hasBoat,
+            status: "available",
+            updatedAt: ctx.timestamp,
+        });
+    }
+}
+
+function availableTeamsForRequest(ctx, _request) {
+    // Capacity is not a dispatch gate — any available team can take an SOS.
+    return [...ctx.db.rescueTeam.iter()].filter((team) => team.status === "available");
+}
+
+/** Create a recommended assignment for a pending request with a chosen available team. */
+function createRecommendedAssignment(ctx, request, team) {
+    if (request.status !== "pending") {
+        throw new SenderError("only pending requests can receive a recommendation");
+    }
+    if (hasOpenAssignment(ctx, request.id)) {
+        throw new SenderError("request already has an open assignment");
+    }
+    if (team.status !== "available") {
+        throw new SenderError("team is not available");
+    }
+    ctx.db.dispatchAssignment.insert({
+        id: 0n,
+        requestId: request.id,
+        teamId: team.id,
+        status: "recommended",
+        createdAt: ctx.timestamp,
+        updatedAt: ctx.timestamp,
+    });
+    ctx.db.rescueRequest.id.update({
+        ...request,
+        status: "recommended",
+        updatedAt: ctx.timestamp,
+    });
+    logActivity(ctx, "dispatch", `Recommended ${team.name} for SOS #${request.id}`, request.id, team.id);
+}
 export const init = spacetimedb.init((ctx) => {
-    // Seed one paused Houston simulation + a couple of demo teams.
+    // Seed one paused Houston simulation + scattered rescue units.
     ctx.db.simulationState.insert({
         id: 0n,
         regionTag: "houston-harvey",
@@ -340,29 +435,35 @@ export const init = spacetimedb.init((ctx) => {
         isPlaying: false,
         updatedAt: ctx.timestamp,
     });
-    ctx.db.rescueTeam.insert({
-        id: 0n,
-        name: "Boat Team Alpha",
-        lat: 29.7604,
-        lon: -95.3698,
-        capacity: 6,
-        hasMedical: true,
-        hasBoat: true,
-        status: "available",
-        updatedAt: ctx.timestamp,
-    });
-    ctx.db.rescueTeam.insert({
-        id: 0n,
-        name: "Ground Team Bravo",
-        lat: 29.7499,
-        lon: -95.3584,
-        capacity: 4,
-        hasMedical: false,
-        hasBoat: false,
-        status: "available",
-        updatedAt: ctx.timestamp,
-    });
-    logActivity(ctx, "init", "WaterBoard module initialized with demo teams");
+    insertHoustonTeams(ctx);
+    logActivity(ctx, "init", `WaterBoard initialized with ${HOUSTON_TEAMS.length} Houston rescue teams`);
+});
+
+/** Replace demo/legacy teams with 15 Houston-scattered units (idempotent). */
+export const seedHoustonRescueTeams = spacetimedb.reducer((ctx) => {
+    const existing = [...ctx.db.rescueTeam.iter()];
+    const already =
+        existing.length === HOUSTON_TEAMS.length &&
+            existing.every((t) => t.name.startsWith("Houston Unit "));
+    if (already)
+        return;
+    for (const a of [...ctx.db.dispatchAssignment.iter()]) {
+        ctx.db.dispatchAssignment.id.delete(a.id);
+    }
+    for (const r of [...ctx.db.rescueRequest.iter()]) {
+        if (r.status === "pending")
+            continue;
+        ctx.db.rescueRequest.id.update({
+            ...r,
+            status: "pending",
+            updatedAt: ctx.timestamp,
+        });
+    }
+    for (const team of existing) {
+        ctx.db.rescueTeam.id.delete(team.id);
+    }
+    insertHoustonTeams(ctx);
+    logActivity(ctx, "team", `Seeded ${HOUSTON_TEAMS.length} Houston rescue teams`);
 });
 export const onConnect = spacetimedb.clientConnected((_ctx) => { });
 export const onDisconnect = spacetimedb.clientDisconnected((_ctx) => { });
@@ -556,45 +657,45 @@ export const recommendDispatch = spacetimedb.reducer((ctx) => {
     if (pending.length === 0) {
         throw new SenderError("no pending requests");
     }
-    const openRequestIds = new Set([...ctx.db.dispatchAssignment.iter()]
-        .filter((a) => a.status === "recommended" || a.status === "confirmed" || a.status === "en_route")
-        .map((a) => a.requestId.toString()));
-    const request = pending.find((r) => !openRequestIds.has(r.id.toString()));
+    const request = pending.find((r) => !hasOpenAssignment(ctx, r.id));
     if (!request)
         throw new SenderError("all pending requests already have assignments");
-    const available = [...ctx.db.rescueTeam.iter()].filter((team) => team.status === "available" && team.capacity >= request.peopleCount);
+    const available = availableTeamsForRequest(ctx, request);
     if (available.length === 0) {
-        throw new SenderError("no available team with enough capacity");
+        throw new SenderError("no available team");
     }
-    // Prefer medical-capable teams for medical emergencies, then nearest.
-    available.sort((a, b) => {
-        if (request.medicalUrgent) {
-            if (a.hasMedical !== b.hasMedical)
-                return a.hasMedical ? -1 : 1;
-        }
-        if (request.stranded) {
-            if (a.hasBoat !== b.hasBoat)
-                return a.hasBoat ? -1 : 1;
-        }
-        return (haversineKm(a.lat, a.lon, request.lat, request.lon) -
-            haversineKm(b.lat, b.lon, request.lat, request.lon));
-    });
-    const team = available[0];
-    ctx.db.dispatchAssignment.insert({
-        id: 0n,
-        requestId: request.id,
-        teamId: team.id,
-        status: "recommended",
-        createdAt: ctx.timestamp,
-        updatedAt: ctx.timestamp,
-    });
-    ctx.db.rescueRequest.id.update({
-        ...request,
-        status: "recommended",
-        updatedAt: ctx.timestamp,
-    });
-    logActivity(ctx, "dispatch", `Recommended ${team.name} for SOS #${request.id}`, request.id, team.id);
+    const team = sortTeamsForRequest(request, available)[0];
+    createRecommendedAssignment(ctx, request, team);
 });
+
+/** Auto-pick the best available team for a specific pending SOS. */
+export const recommendDispatchFor = spacetimedb.reducer({ requestId: t.u64() }, (ctx, { requestId }) => {
+    const request = ctx.db.rescueRequest.id.find(requestId);
+    if (!request)
+        throw new SenderError("request not found");
+    if (request.status !== "pending")
+        throw new SenderError("only pending requests can be recommended");
+    if (hasOpenAssignment(ctx, request.id))
+        throw new SenderError("request already has an open assignment");
+    const available = availableTeamsForRequest(ctx, request);
+    if (available.length === 0) {
+        throw new SenderError("no available team");
+    }
+    const team = sortTeamsForRequest(request, available)[0];
+    createRecommendedAssignment(ctx, request, team);
+});
+
+/** Manual dispatcher assignment: pick SOS + team, then confirm as usual. */
+export const assignDispatch = spacetimedb.reducer({ requestId: t.u64(), teamId: t.u64() }, (ctx, { requestId, teamId }) => {
+    const request = ctx.db.rescueRequest.id.find(requestId);
+    if (!request)
+        throw new SenderError("request not found");
+    const team = ctx.db.rescueTeam.id.find(teamId);
+    if (!team)
+        throw new SenderError("team not found");
+    createRecommendedAssignment(ctx, request, team);
+});
+
 /** Human dispatcher confirms a recommended assignment. */
 export const confirmDispatch = spacetimedb.reducer({ assignmentId: t.u64() }, (ctx, { assignmentId }) => {
     const assignment = ctx.db.dispatchAssignment.id.find(assignmentId);
@@ -614,8 +715,11 @@ export const confirmDispatch = spacetimedb.reducer({ assignmentId: t.u64() }, (c
         status: "confirmed",
         updatedAt: ctx.timestamp,
     });
+    // Move team to the SOS — last-known position stays here after complete.
     ctx.db.rescueTeam.id.update({
         ...team,
+        lat: request.lat,
+        lon: request.lon,
         status: "busy",
         updatedAt: ctx.timestamp,
     });
@@ -625,6 +729,64 @@ export const confirmDispatch = spacetimedb.reducer({ assignmentId: t.u64() }, (c
         updatedAt: ctx.timestamp,
     });
     logActivity(ctx, "dispatch", `Confirmed dispatch of ${team.name} to SOS #${request.id}`, request.id, team.id);
+});
+
+/** Undo a recommendation so the SOS returns to the pending queue. */
+export const cancelDispatch = spacetimedb.reducer({ assignmentId: t.u64() }, (ctx, { assignmentId }) => {
+    const assignment = ctx.db.dispatchAssignment.id.find(assignmentId);
+    if (!assignment)
+        throw new SenderError("assignment not found");
+    if (assignment.status !== "recommended") {
+        throw new SenderError("only recommended assignments can be cancelled");
+    }
+    const team = ctx.db.rescueTeam.id.find(assignment.teamId);
+    const request = ctx.db.rescueRequest.id.find(assignment.requestId);
+    if (!request)
+        throw new SenderError("assignment references missing request");
+    ctx.db.dispatchAssignment.id.update({
+        ...assignment,
+        status: "cancelled",
+        updatedAt: ctx.timestamp,
+    });
+    ctx.db.rescueRequest.id.update({
+        ...request,
+        status: "pending",
+        updatedAt: ctx.timestamp,
+    });
+    logActivity(ctx, "dispatch", `Cancelled recommendation for SOS #${request.id}${team ? ` (${team.name})` : ""}`, request.id, team?.id);
+});
+
+/** Mark a confirmed (or en-route) assignment complete and free the team. */
+export const completeDispatch = spacetimedb.reducer({ assignmentId: t.u64() }, (ctx, { assignmentId }) => {
+    const assignment = ctx.db.dispatchAssignment.id.find(assignmentId);
+    if (!assignment)
+        throw new SenderError("assignment not found");
+    if (assignment.status !== "confirmed" && assignment.status !== "en_route") {
+        throw new SenderError("only confirmed or en_route assignments can be completed");
+    }
+    const team = ctx.db.rescueTeam.id.find(assignment.teamId);
+    const request = ctx.db.rescueRequest.id.find(assignment.requestId);
+    if (!team || !request)
+        throw new SenderError("assignment references missing rows");
+    ctx.db.dispatchAssignment.id.update({
+        ...assignment,
+        status: "completed",
+        updatedAt: ctx.timestamp,
+    });
+    // Stay at last SOS coords (already set on confirm) — no snap-back home.
+    ctx.db.rescueTeam.id.update({
+        ...team,
+        lat: request.lat,
+        lon: request.lon,
+        status: "available",
+        updatedAt: ctx.timestamp,
+    });
+    ctx.db.rescueRequest.id.update({
+        ...request,
+        status: "completed",
+        updatedAt: ctx.timestamp,
+    });
+    logActivity(ctx, "dispatch", `Completed rescue of SOS #${request.id} by ${team.name}`, request.id, team.id);
 });
 export const seedStormTrack = spacetimedb.reducer({ points: t.array(StormObservationInput) }, (ctx, { points }) => {
     if ([...ctx.db.stormObservation.iter()].length > 0) {

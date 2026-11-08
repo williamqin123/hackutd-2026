@@ -69,7 +69,20 @@
 .details { padding: 0 16px 16px; }
 .recommendation { border-top: 1px solid #dfe7ee; margin-top: 14px; padding-top: 14px; }
 .suggested { margin: 0; color: #107c83; font-size: 14px; font-weight: 700; }
-.panel .primary {
+.assignBlock { display: grid; gap: 8px; }
+.assignLabel { color: #122638; font-size: 12px; font-weight: 700; }
+.teamSelect {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid #dfe7ee;
+  border-radius: 12px;
+  background: #fff;
+  color: #122638;
+  font: inherit;
+  font-size: 12px;
+}
+.panel .primary,
+.panel .secondary {
   width: 100%;
   margin: 12px 0 0;
   padding: 12px;
@@ -79,6 +92,12 @@
   color: #fff;
   font-size: 13px;
   font-weight: 700;
+}
+.panel .secondary {
+  margin-top: 8px;
+  border: 1px solid #dfe7ee;
+  background: #fff;
+  color: #107c83;
 }
 .footer { flex-wrap: wrap; margin-top: 20px; color: #64768a; font-size: 11px; }
 .panel .footer button, .panel .cancel { margin: 0; padding: 4px 0; border: none; background: transparent; color: #107c83; font-size: 12px; font-weight: 700; }

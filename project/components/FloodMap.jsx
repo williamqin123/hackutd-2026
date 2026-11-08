@@ -31,6 +31,10 @@ function microsToLabel(micros) {
  * Live Houston flood map for WaterBoard.
  * Layers: OSM basemap, storm track, gauge flood zones, active flood sites.
  */
+const OPEN_ASSIGNMENT = new Set(["recommended", "confirmed", "en_route"]);
+
+const SOS_HALO_METERS = 1800;
+
 export default function FloodMap({
   simTimeMicros,
   stormPoints = [],
@@ -39,18 +43,25 @@ export default function FloodMap({
   floodMarks = [],
   requests = [],
   teams = [],
+  assignments = [],
+  selectedRequestId = null,
+  onSelectRequest,
 }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const layersRef = useRef(null);
+  const onSelectRequestRef = useRef(onSelectRequest);
+  onSelectRequestRef.current = onSelectRequest;
   const [visibleLayers, setVisibleLayers] = useState({
     teams: true,
     sensors: true,
     storm: true,
   });
   const requestLocations = requests
-    .filter((request) => Number.isFinite(request.lat) && Number.isFinite(request.lon)
-      && Math.abs(request.lat) <= 90 && Math.abs(request.lon) <= 180)
+    .filter((request) =>
+      ["pending", "recommended", "assigned"].includes(request.status) &&
+      Number.isFinite(request.lat) && Number.isFinite(request.lon) &&
+      Math.abs(request.lat) <= 90 && Math.abs(request.lon) <= 180)
     .map((request) => [request.lat, request.lon]);
 
   function centerHouston() {
@@ -296,16 +307,83 @@ export default function FloodMap({
       layers.marks.addLayer(marker);
     }
 
-    for (const req of requests) {
+    // Active SOS only — completed/cancelled leave the map so teams don't overlap ghosts.
+    const activeRequests = requests.filter((req) =>
+      ["pending", "recommended", "assigned"].includes(req.status),
+    );
+    const teamById = new Map(teams.map((team) => [String(team.id), team]));
+    const pairedByRequest = new Map();
+    for (const assignment of assignments) {
+      if (!OPEN_ASSIGNMENT.has(assignment.status)) continue;
+      const request = activeRequests.find((r) => String(r.id) === String(assignment.requestId));
+      const team = teamById.get(String(assignment.teamId));
+      if (!request || !team) continue;
+      pairedByRequest.set(String(request.id), { request, team, assignment });
+    }
+    const pairedTeamIds = new Set(
+      [...pairedByRequest.values()].map(({ team }) => String(team.id)),
+    );
+
+    const selectRequest = (requestId) => {
+      onSelectRequestRef.current?.(String(requestId));
+    };
+
+    const addSosHalo = (req, selected) => {
+      L.circle([req.lat, req.lon], {
+        radius: SOS_HALO_METERS,
+        color: selected ? "#16a34a" : "#b91c1c",
+        weight: selected ? 2 : 1.25,
+        opacity: selected ? 0.7 : 0.45,
+        fillColor: selected ? "#16a34a" : "#b91c1c",
+        fillOpacity: selected ? 0.14 : 0.08,
+        interactive: true,
+      })
+        .on("click", () => selectRequest(req.id))
+        .addTo(layers.units);
+    };
+
+    for (const { request: req, team, assignment } of pairedByRequest.values()) {
+      const selected = String(selectedRequestId) === String(req.id);
+      addSosHalo(req, selected);
+      L.marker([req.lat, req.lon], {
+        title: `${team.name} → SOS #${req.id}`,
+        zIndexOffset: 600,
+      })
+        .setIcon(
+          L.divIcon({
+            className: "waterboard-divicon",
+            html:
+              `<div class="waterboard-pair${selected ? " waterboard-pair-selected" : ""}" title="${team.name} on SOS #${req.id}">` +
+              `<div class="waterboard-chip waterboard-chip-team">TEAM</div>` +
+              `<div class="waterboard-chip waterboard-chip-sos waterboard-chip-sos-active">SOS</div>` +
+              `</div>`,
+            iconSize: [56, 52],
+            iconAnchor: [28, 26],
+          }),
+        )
+        .on("click", () => selectRequest(req.id))
+        .bindPopup(
+          `<strong>${team.name}</strong> → SOS #${req.id}<br/>` +
+            `${assignment.status}<br/>${req.description}`,
+          { autoPan: true },
+        )
+        .addTo(layers.units);
+    }
+
+    for (const req of activeRequests) {
+      if (pairedByRequest.has(String(req.id))) continue;
+      const selected = String(selectedRequestId) === String(req.id);
+      addSosHalo(req, selected);
       L.marker([req.lat, req.lon], { title: `SOS #${req.id}`, zIndexOffset: 500 })
         .setIcon(
           L.divIcon({
             className: "waterboard-divicon",
-            html: `<div style="background:#b91c1c;color:white;border-radius:999px;padding:2px 6px;font:12px system-ui;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.4)">SOS</div>`,
-            iconSize: [36, 20],
-            iconAnchor: [18, 10],
+            html: `<div class="waterboard-chip waterboard-chip-sos waterboard-chip-solo${selected ? " waterboard-chip-selected" : ""}">SOS</div>`,
+            iconSize: [52, 28],
+            iconAnchor: [26, 14],
           }),
         )
+        .on("click", () => selectRequest(req.id))
         .bindPopup(`SOS #${req.id}<br/>${req.description}<br/>${req.status}`, {
           autoPan: true,
         })
@@ -313,13 +391,14 @@ export default function FloodMap({
     }
 
     for (const team of teams) {
+      if (pairedTeamIds.has(String(team.id))) continue;
       L.marker([team.lat, team.lon], { zIndexOffset: 400 })
         .setIcon(
           L.divIcon({
             className: "waterboard-divicon",
-            html: `<div style="background:#0369a1;color:white;border-radius:6px;padding:2px 6px;font:12px system-ui;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.4)">TEAM</div>`,
-            iconSize: [44, 20],
-            iconAnchor: [22, 10],
+            html: `<div class="waterboard-chip waterboard-chip-team waterboard-chip-solo">TEAM</div>`,
+            iconSize: [56, 28],
+            iconAnchor: [28, 14],
           }),
         )
         .bindPopup(`${team.name}<br/>${team.status}`, { autoPan: true })
@@ -333,6 +412,8 @@ export default function FloodMap({
     floodMarks,
     requests,
     teams,
+    assignments,
+    selectedRequestId,
   ]);
 
   return (
@@ -367,8 +448,70 @@ export default function FloodMap({
           border-top-color: rgba(15, 23, 42, 0.92);
         }
         .waterboard-divicon {
+          background: transparent !important;
+          border: 0 !important;
+        }
+        .waterboard-chip {
+          box-sizing: border-box;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: white;
+          padding: 0 8px;
+          font: 700 11px/1 system-ui, sans-serif;
+          letter-spacing: 0.02em;
+          border: 2px solid white;
+          box-shadow: 0 1px 4px rgba(0,0,0,.4);
+          text-align: center;
+          white-space: nowrap;
+        }
+        .waterboard-chip-solo.waterboard-chip-sos {
+          width: 52px;
+          height: 28px;
+          font-size: 12px;
+        }
+        .waterboard-chip-solo.waterboard-chip-team {
+          width: 56px;
+          height: 28px;
+          font-size: 12px;
+        }
+        .waterboard-chip-sos {
+          background: #b91c1c;
+          border-radius: 999px;
+        }
+        .waterboard-chip-sos-active {
+          background: #16a34a;
+          border-color: #bbf7d0;
+          box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.35), 0 1px 4px rgba(0,0,0,.35);
+        }
+        .waterboard-chip-selected {
+          box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.55), 0 1px 4px rgba(0,0,0,.4);
+        }
+        .waterboard-chip-team {
+          background: #0369a1;
+          border-radius: 6px;
+        }
+        .waterboard-pair {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 0;
+          width: 56px;
+          height: 52px;
           background: transparent;
-          border: 0;
+        }
+        .waterboard-pair .waterboard-chip {
+          width: 48px;
+          height: 24px;
+          font-size: 12px;
+        }
+        .waterboard-pair .waterboard-chip-team {
+          margin-bottom: -2px;
+          z-index: 1;
+        }
+        .waterboard-pair-selected .waterboard-chip-sos-active {
+          box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.55), 0 1px 4px rgba(0,0,0,.35);
         }
       `}</style>
 
