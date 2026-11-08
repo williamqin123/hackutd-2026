@@ -34,7 +34,6 @@ import {
 } from "spacetimedb";
 
 // Import all reducer arg schemas
-import AddSosReducer from "./add_sos_reducer";
 import AdvanceSimulationReducer from "./advance_simulation_reducer";
 import AssignDispatchReducer from "./assign_dispatch_reducer";
 import AutoDispatchNextReducer from "./auto_dispatch_next_reducer";
@@ -46,7 +45,6 @@ import ConfirmDispatchReducer from "./confirm_dispatch_reducer";
 import CreateRescueRequestReducer from "./create_rescue_request_reducer";
 import CreateRescueTeamReducer from "./create_rescue_team_reducer";
 import CreateSimulationReducer from "./create_simulation_reducer";
-import CreateSosReducer from "./create_sos_reducer";
 import DispatchRequestReducer from "./dispatch_request_reducer";
 import ImportCsvDataReducer from "./import_csv_data_reducer";
 import RecommendDispatchReducer from "./recommend_dispatch_reducer";
@@ -76,7 +74,6 @@ import RescueTeamRow from "./rescue_team_table";
 import ShelterRow from "./shelter_table";
 import SimulationStateRow from "./simulation_state_table";
 import SiteThreatRow from "./site_threat_table";
-import SosRow from "./sos_table";
 import StormObservationRow from "./storm_observation_table";
 import ThreatRegionRow from "./threat_region_table";
 
@@ -223,17 +220,6 @@ const tablesSchema = __schema({
       { name: 'site_threat_object_id_key', constraint: 'unique', columns: ['objectId'] },
     ],
   }, SiteThreatRow),
-  sos: __table({
-    name: 'sos',
-    indexes: [
-      { accessor: 'id', name: 'sos_id_idx_btree', algorithm: 'btree', columns: [
-        'id',
-      ] },
-    ],
-    constraints: [
-      { name: 'sos_id_key', constraint: 'unique', columns: ['id'] },
-    ],
-  }, SosRow),
   stormObservation: __table({
     name: 'storm_observation',
     indexes: [
@@ -263,7 +249,6 @@ const tablesSchema = __schema({
 
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
 const reducersSchema = __reducers(
-  __reducerSchema("add_sos", AddSosReducer),
   __reducerSchema("advance_simulation", AdvanceSimulationReducer),
   __reducerSchema("assign_dispatch", AssignDispatchReducer),
   __reducerSchema("auto_dispatch_next", AutoDispatchNextReducer),
@@ -275,7 +260,6 @@ const reducersSchema = __reducers(
   __reducerSchema("create_rescue_request", CreateRescueRequestReducer),
   __reducerSchema("create_rescue_team", CreateRescueTeamReducer),
   __reducerSchema("create_simulation", CreateSimulationReducer),
-  __reducerSchema("create_sos", CreateSosReducer),
   __reducerSchema("dispatch_request", DispatchRequestReducer),
   __reducerSchema("import_csv_data", ImportCsvDataReducer),
   __reducerSchema("recommend_dispatch", RecommendDispatchReducer),

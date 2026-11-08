@@ -136,8 +136,6 @@ function getRandomHarrisCountyLocation() {
 export default function MobileSosPage() {
   const { isActive, getConnection } = useSpacetimeDB();
 
-  // Subscriptions to both tables
-  const [sosRecords] = useTable(tables.sos);
   const [rescueRequests] = useTable(tables.rescueRequest);
 
   // Stable first render so a phone and the server match. Shuffle after mount.
@@ -307,7 +305,6 @@ export default function MobileSosPage() {
     });
   };
 
-  // Submit SOS: explicitly calls both createRescueRequest AND addSos
   const handleSubmitSos = async (e) => {
     if (e) e.preventDefault();
     setIsSubmitting(true);
@@ -362,7 +359,8 @@ export default function MobileSosPage() {
         medicalUrgent: isMedical,
         stranded: isStranded,
         needsTransport: isTransport,
-        description: `[Mobile SOS] ${targetText} (Loc: ${targetLocation})`,
+        description: targetText,
+        location: targetLocation,
       });
       const created = [...conn.db.rescueRequest.iter()].some(
         (row) => !before.has(String(row.id)),
@@ -371,19 +369,6 @@ export default function MobileSosPage() {
         throw new Error(
           "The SOS did not land on the shared rescue board. Confirm this phone is using the same SpacetimeDB database as the dashboard.",
         );
-      }
-
-      // 2. Explicitly invoke addSos reducer to create the record in the 'sos' table
-      if (conn.reducers.addSos) {
-        await conn.reducers.addSos({
-          location: targetLocation,
-          text: targetText,
-        });
-      } else if (conn.reducers.createSos) {
-        await conn.reducers.createSos({
-          location: targetLocation,
-          text: targetText,
-        });
       }
 
       setLastSubmission({
@@ -595,20 +580,14 @@ export default function MobileSosPage() {
             ⚠️ Tap SOS button to transmit rescue coordinates & situation
           </p>
           <p className="sos-footer-desc">
-            Calls SpacetimeDB to create <strong>rescue_request</strong> &{" "}
-            <strong>sos</strong> records.
+            Sends one SOS to the WaterBoard dispatch board.
           </p>
         </div>
 
-        {/* Live Counters */}
         <div className="sos-counters-row">
           <span className="sos-counter-item">
             <span className="sos-counter-dot requests" />
-            <strong>{rescueRequests?.length ?? 0}</strong> rescue requests
-          </span>
-          <span className="sos-counter-item">
-            <span className="sos-counter-dot logs" />
-            <strong>{sosRecords?.length ?? 0}</strong> SOS logs
+            <strong>{rescueRequests?.length ?? 0}</strong> SOS requests
           </span>
         </div>
       </footer>
@@ -660,8 +639,7 @@ export default function MobileSosPage() {
                     SOS Transmitted Successfully!
                   </h2>
                   <p className="sos-modal-subtitle">
-                    Created <strong>rescue_request</strong> record on The
-                    WaterBoard dispatch & saved to <strong>sos</strong> table.
+                    Filed on the WaterBoard dispatch board.
                   </p>
                 </div>
 

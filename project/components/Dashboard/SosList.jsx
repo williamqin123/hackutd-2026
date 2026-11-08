@@ -92,7 +92,7 @@ export default function SosList({
   const unassignedCount = requests.filter((r) => r.status === "pending").length;
   const filtered = requests.filter((r) => {
     const matchesFilter = filter === "all" || (filter === "critical" ? isCritical(r) : r.status === "pending");
-    const searchable = `SOS #${r.id} R-${r.id} ${r.description} ${r.lat} ${r.lon}`.toLowerCase();
+    const searchable = `SOS #${r.id} R-${r.id} ${r.description} ${r.location || ""} ${r.lat} ${r.lon}`.toLowerCase();
     return matchesFilter && searchable.includes(query.trim().toLowerCase());
   });
   const visible = showAll ? filtered : filtered.slice(0, 3);
@@ -174,7 +174,7 @@ export default function SosList({
                   </span>
                 </div>
                 <p className={styles.description}>{request.description}</p>
-                <p className={styles.meta}>{request.peopleCount} {request.peopleCount === 1 ? "person" : "people"} / Waiting {wait}</p>
+                <p className={styles.meta}>{request.location ? `${request.location} · ` : ""}{request.peopleCount} {request.peopleCount === 1 ? "person" : "people"} / Waiting {wait}</p>
               </button>
               {active && (
                 <div className={styles.details}>

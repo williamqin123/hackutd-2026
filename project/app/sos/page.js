@@ -135,8 +135,6 @@ function getRandomHarrisCountyLocation() {
 export default function MobileSosPage() {
   const { isActive, getConnection } = useSpacetimeDB();
 
-  // Subscriptions to both tables
-  const [sosRecords] = useTable(tables.sos);
   const [rescueRequests] = useTable(tables.rescueRequest);
 
   const defaultLoc = HARRIS_COUNTY_LOCATIONS[0];
@@ -282,7 +280,6 @@ export default function MobileSosPage() {
     });
   };
 
-  // Submit SOS: explicitly calls both createRescueRequest AND addSos
   const handleSubmitSos = async (e) => {
     if (e) e.preventDefault();
     setIsSubmitting(true);
@@ -325,24 +322,12 @@ export default function MobileSosPage() {
         medicalUrgent: isMedical,
         stranded: isStranded,
         needsTransport: isTransport,
-        description: `[Mobile SOS] ${targetText} (Loc: ${targetLocation})`,
+        description: targetText,
+        location: targetLocation,
       });
       const created = [...conn.db.rescueRequest.iter()].some((row) => !before.has(String(row.id)));
       if (!created) {
         throw new Error('The SOS did not land on the shared rescue board. Confirm this phone is using the same SpacetimeDB database as the dashboard.');
-      }
-
-      // 2. Explicitly invoke addSos reducer to create the record in the 'sos' table
-      if (conn.reducers.addSos) {
-        await conn.reducers.addSos({
-          location: targetLocation,
-          text: targetText,
-        });
-      } else if (conn.reducers.createSos) {
-        await conn.reducers.createSos({
-          location: targetLocation,
-          text: targetText,
-        });
       }
 
       setLastSubmission({
@@ -937,7 +922,7 @@ export default function MobileSosPage() {
               color: 'rgba(255, 255, 255, 0.75)',
             }}
           >
-            Calls SpacetimeDB to create <strong>rescue_request</strong> & <strong>sos</strong> records.
+            Sends one SOS to the WaterBoard dispatch board.
           </p>
         </div>
 
@@ -955,11 +940,7 @@ export default function MobileSosPage() {
         >
           <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
             <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#ef4444' }} />
-            <strong>{rescueRequests?.length ?? 0}</strong> rescue requests
-          </span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#38bdf8' }} />
-            <strong>{sosRecords?.length ?? 0}</strong> SOS logs
+            <strong>{rescueRequests?.length ?? 0}</strong> SOS requests
           </span>
         </div>
       </footer>
@@ -1086,7 +1067,7 @@ export default function MobileSosPage() {
                       margin: 0,
                     }}
                   >
-                    Created <strong>rescue_request</strong> record on WaterBoard dispatch & saved to <strong>sos</strong> table.
+                    Filed on the WaterBoard dispatch board.
                   </p>
                 </div>
 

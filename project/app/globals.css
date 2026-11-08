@@ -1,3 +1,87 @@
+@import "tailwindcss";
+
+@custom-variant cyberpunk (&:where([data-theme="cyberpunk"], [data-theme="cyberpunk"] *));
+
+@theme inline {
+  --color-wb-page: var(--wb-page);
+  --color-wb-surface: var(--wb-surface);
+  --color-wb-raised: var(--wb-raised);
+  --color-wb-text: var(--wb-text);
+  --color-wb-muted: var(--wb-muted);
+  --color-wb-border: var(--wb-border);
+  --color-wb-accent: var(--wb-accent);
+  --color-wb-on-accent: var(--wb-on-accent);
+  --color-wb-danger: var(--wb-danger);
+  --color-wb-danger-soft: var(--wb-danger-soft);
+  --color-wb-warning: var(--wb-warning);
+  --color-wb-warning-soft: var(--wb-warning-soft);
+  --color-wb-success: var(--wb-success);
+  --color-wb-success-soft: var(--wb-success-soft);
+}
+
+:root {
+  color-scheme: dark;
+  --wb-page: #070b14;
+  --wb-surface: #0e1726;
+  --wb-raised: #142235;
+  --wb-input: #0a1220;
+  --wb-selected: #102c33;
+  --wb-text: #e9f4ff;
+  --wb-muted: #a3b5cb;
+  --wb-border: #253d52;
+  --wb-accent: #55f4d2;
+  --wb-accent-hover: #8bffe4;
+  --wb-on-accent: #06251f;
+  --wb-danger: #ff9cb1;
+  --wb-danger-soft: #2d1525;
+  --wb-warning: #ffdc8b;
+  --wb-warning-soft: #2c2519;
+  --wb-success: #77efd0;
+  --wb-success-soft: #10302e;
+  --wb-panel-shadow: 0 0 0 1px #55f4d218, 0 12px 32px #0002;
+  --wb-page-background: radial-gradient(ellipse at 85% 0%, #13363855, transparent 50%), linear-gradient(90deg, #55f4d204 1px, transparent 1px), linear-gradient(#55f4d204 1px, transparent 1px), var(--wb-page);
+  --sos-page-bg: #090d18;
+  --sos-page-image: radial-gradient(ellipse at 50% 35%, #46152c 0%, #141526 45%, #090d18 90%);
+  --sos-panel: #121b2bf2;
+  --sos-text: #f1f5ff;
+  --sos-muted: #b3c2d9;
+  --sos-field: #ffffff0b;
+  --sos-line: #ffffff30;
+  --sos-modal-image: radial-gradient(circle at top right, #2d1525, #0e1726);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --wb-page: #edf2f6;
+  --wb-surface: #ffffff;
+  --wb-raised: #f5f7fa;
+  --wb-input: #f0f5f8;
+  --wb-selected: #f3faf9;
+  --wb-text: #122638;
+  --wb-muted: #64768a;
+  --wb-border: #dfe7ee;
+  --wb-accent: #107c83;
+  --wb-accent-hover: #0c666c;
+  --wb-on-accent: #ffffff;
+  --wb-danger: #b82e29;
+  --wb-danger-soft: #fde5e3;
+  --wb-warning: #8a5908;
+  --wb-warning-soft: #fff1c9;
+  --wb-success: #106f62;
+  --wb-success-soft: #ddf2ef;
+  --wb-panel-shadow: 0 4px 20px #12263805;
+  --wb-page-background: var(--wb-page);
+  --sos-page-bg: #fff4f3;
+  --sos-page-image: radial-gradient(ellipse at 50% 35%, #ffe0e0 0%, #fff4f3 75%);
+  --sos-panel: #fffffff2;
+  --sos-text: #321b24;
+  --sos-muted: #715461;
+  --sos-field: #9f12390a;
+  --sos-line: #9f12392b;
+  --sos-modal-image: linear-gradient(#ffffff, #fff7f7);
+}
+
+@layer base {
 * { box-sizing: border-box; }
 
 html, body {
@@ -6,8 +90,8 @@ html, body {
 }
 
 body {
-  color: #222;
-  background: white;
+  color: var(--wb-text);
+  background: var(--wb-page);
   font-family: system-ui, sans-serif;
   line-height: 1.5;
 }
@@ -44,29 +128,29 @@ input[type="range"] {
   margin: 8px 0 12px;
 }
 
-.muted { color: #64748b; font-size: 13px; }
+.muted { color: var(--wb-muted); font-size: 13px; }
 
 .notice {
-  background: #fef3c7;
-  border: 1px solid #f59e0b;
-  color: #92400e;
+  background: var(--wb-warning-soft);
+  border: 1px solid var(--wb-warning);
+  color: var(--wb-warning);
   padding: 12px 14px;
   border-radius: 10px;
 }
 
 [role="alert"] {
-  color: #a00;
+  color: var(--wb-danger);
   overflow-wrap: anywhere;
 }
 
 .flood-map-loading {
   height: 520px;
   border-radius: 12px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--wb-border);
   display: grid;
   place-items: center;
-  color: #64748b;
-  background: #f8fafc;
+  color: var(--wb-muted);
+  background: var(--wb-raised);
 }
 
 .simulation-clock input[type="range"] {
@@ -107,3 +191,21 @@ input[type="range"] {
   font-size: 13px;
   color: #334155;
 }
+
+/* Transform only basemap tiles; SOS/team markers retain their semantic colors. */
+html[data-theme="cyberpunk"] .waterboard-map-shell .leaflet-tile-pane {
+  filter: invert(1) hue-rotate(180deg) brightness(.78) saturate(.6);
+}
+.waterboard-map-shell .leaflet-container { color: var(--wb-text); background: var(--wb-raised); }
+.waterboard-map-shell .leaflet-bar a,
+.waterboard-map-shell .leaflet-control-attribution,
+.waterboard-map-shell .leaflet-popup-content-wrapper,
+.waterboard-map-shell .leaflet-popup-tip {
+  background: var(--wb-surface);
+  color: var(--wb-text);
+}
+.waterboard-map-shell .leaflet-bar a { border-color: var(--wb-border); }
+.waterboard-map-shell .leaflet-bar a:hover { background: var(--wb-raised); }
+.waterboard-map-shell .leaflet-control-attribution a,
+.waterboard-map-shell .leaflet-popup-close-button { color: var(--wb-accent); }
+.sos-always-white { color: #ffffff !important; }

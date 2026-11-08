@@ -1,13 +1,17 @@
 import Link from "next/link";
 import styles from "./Welcome.module.css";
+import ThemeToggle from "../ThemeToggle";
 
 export default function Welcome() {
   return (
     <main className={styles.page}>
-      <header className={styles.brand}>
+      <header className="flex flex-wrap items-center justify-between gap-4">
+        <div className={styles.brand}>
         <img className={styles.logo} src="/favicon-teal.svg" alt="" width="46" height="46" />
 
         <span>WaterBoard</span>
+        </div>
+        <ThemeToggle />
       </header>
 
       <div className={styles.content}>

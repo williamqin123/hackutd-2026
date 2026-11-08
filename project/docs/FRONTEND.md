@@ -194,10 +194,17 @@ For Railway public networking, cross-origin WebSocket requirements, and the
 
 | Approach | Where |
 | --- | --- |
-| Dashboard layout / buttons | `app/globals.css` |
+| Tailwind CSS 4 / theme tokens | `app/globals.css`, `postcss.config.mjs` |
+| Theme switch / persistence | `components/ThemeToggle.jsx`, `components/ThemeProvider.jsx` |
+| Existing component styles | CSS modules using shared `--wb-*` theme variables |
 | Map-only CSS | `<style>` inside `FloodMap.jsx` (popup z-index) |
 
-There is no Tailwind / component library in this project yet — add one only if the team agrees.
+Cyberpunk is the default dark theme. Light mode is selected with the theme switch
+on the welcome, dashboard, and SOS screens. The browser saves `waterboard-theme`
+in local storage; the initial head script restores it before paint. Storage is
+optional, and no system light preference overrides the requested dark default.
+The map changes only its basemap tile colors; hazard and SOS overlays keep their
+semantic colors. Request data and connection state are independent of the theme.
 
 ---
 

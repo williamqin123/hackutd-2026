@@ -16,7 +16,7 @@
 
 .label {
   margin-right: 4px;
-  color: #64768a;
+  color: var(--wb-muted);
   font-size: 12px;
 }
 
@@ -26,10 +26,10 @@
   gap: 7px;
   margin: 0;
   padding: 9px 12px;
-  border: 1px solid #dfe7ee;
+  border: 1px solid var(--wb-border);
   border-radius: 10px;
-  background: #f5f7fa;
-  color: #526579;
+  background: var(--wb-raised);
+  color: var(--wb-muted);
   font: inherit;
   font-size: 12px;
   font-weight: 600;
@@ -37,17 +37,17 @@
 }
 
 .controls button[aria-pressed="true"] {
-  border-color: #b2dcd8;
-  background: #e5f4f1;
-  color: #106f62;
+  border-color: var(--wb-border);
+  background: var(--wb-success-soft);
+  color: var(--wb-success);
 }
 
 .controls button:hover:not(:disabled) {
-  border-color: #107c83;
+  border-color: var(--wb-accent);
 }
 
 .controls button:focus-visible {
-  outline: 2px solid #107c83;
+  outline: 2px solid var(--wb-accent);
   outline-offset: 3px;
 }
 

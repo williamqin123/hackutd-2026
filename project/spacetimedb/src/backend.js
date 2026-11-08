@@ -38,6 +38,8 @@ const rescueRequest = table({
     priorityScore: t.i32(),
     createdAt: t.timestamp(),
     updatedAt: t.timestamp(),
+    // Place name from the phone beacon. Empty when a request only has coordinates.
+    location: t.string().default(""),
 });
 const rescueTeam = table({
     name: "rescue_team",
@@ -223,15 +225,6 @@ const threatRegion = table({
     level: t.string(),
     updatedSimMicros: t.i64(),
 });
-const sos = table({
-    name: "sos",
-    public: true,
-}, {
-    id: t.u64().primaryKey().autoInc(),
-    location: t.string(),
-    timestamp: t.timestamp(),
-    text: t.string(),
-});
 // Shared shelter availability, initially populated from the CSV.
 const shelter = table(
     { name: "shelter", public: true },
@@ -268,7 +261,6 @@ const spacetimedb = schema({
     gaugeReading,
     siteThreat,
     threatRegion,
-    sos,
 });
 export default spacetimedb;
 
@@ -633,9 +625,18 @@ export const createRescueRequest = spacetimedb.reducer({
     stranded: t.bool(),
     needsTransport: t.bool(),
     description: t.string(),
+    location: t.string(),
 }, (ctx, args) => {
     if (args.peopleCount < 1) {
         throw new SenderError("peopleCount must be >= 1");
+    }
+    const location = args.location.trim();
+    if (location.length > 500) {
+        throw new SenderError("location must be at most 500 characters");
+    }
+    const description = args.description.trim();
+    if (!description || description.length > 10000) {
+        throw new SenderError("description is required and must be at most 10000 characters");
     }
     const priorityScore = computePriorityScore(args);
     const row = ctx.db.rescueRequest.insert({
@@ -646,13 +647,14 @@ export const createRescueRequest = spacetimedb.reducer({
         medicalUrgent: args.medicalUrgent,
         stranded: args.stranded,
         needsTransport: args.needsTransport,
-        description: args.description,
+        description,
         status: "pending",
         priorityScore,
         createdAt: ctx.timestamp,
         updatedAt: ctx.timestamp,
+        location,
     });
-    logActivity(ctx, "sos", `New SOS #${row.id} priority=${priorityScore}`, row.id);
+    logActivity(ctx, "sos", `New SOS #${row.id}${location ? ` at ${location}` : ""} priority=${priorityScore}`, row.id);
 });
 export const createRescueTeam = spacetimedb.reducer({
     name: t.string(),
@@ -768,9 +770,6 @@ export const clearRescueBoard = spacetimedb.reducer((ctx) => {
     }
     for (const request of [...ctx.db.rescueRequest.iter()]) {
         ctx.db.rescueRequest.id.delete(request.id);
-    }
-    for (const row of [...ctx.db.sos.iter()]) {
-        ctx.db.sos.id.delete(row.id);
     }
     const homes = new Map(HOUSTON_TEAMS.map((team) => [team.name, team]));
     for (const team of [...ctx.db.rescueTeam.iter()]) {
@@ -1059,27 +1058,4 @@ export const recomputeThreats = spacetimedb.reducer({ regionTag: t.string() }, (
             ctx.db.siteThreat.insert(row);
     }
     logActivity(ctx, "threat", `Recomputed threats at sim micros ${T} (${marks.length} sites, ${stations.length} regions)`);
-});
-function handleAddSos(ctx, location, text) {
-    const loc = location.trim() || "Harris County, Texas";
-    const txt = text.trim();
-    const row = ctx.db.sos.insert({
-        id: 0n,
-        location: loc,
-        timestamp: ctx.timestamp,
-        text: txt,
-    });
-    logActivity(ctx, "sos", `Emergency SOS: ${loc} - ${txt.slice(0, 50) || "No message"}`, row.id);
-}
-export const addSos = spacetimedb.reducer({
-    location: t.string(),
-    text: t.string(),
-}, (ctx, args) => {
-    handleAddSos(ctx, args.location, args.text);
-});
-export const createSos = spacetimedb.reducer({
-    location: t.string(),
-    text: t.string(),
-}, (ctx, args) => {
-    handleAddSos(ctx, args.location, args.text);
 });
