@@ -28,6 +28,12 @@ function microsToLabel(micros) {
   return new Date(ms).toISOString().replace("T", " ").slice(0, 16) + "Z";
 }
 
+// Leaflet popups, tooltips, and divIcons render strings as HTML, and these
+// fields come from public reducers (SOS beacon, team creation, seeding).
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
+}
+
 /**
  * Live Houston flood map for WaterBoard.
  * Layers: OSM basemap, storm track, gauge flood zones, active flood sites.
@@ -214,7 +220,7 @@ export default function FloodMap({
       const color = LEVEL_COLORS[region.level] ?? LEVEL_COLORS.none;
       const isHot = region.level === "warning" || region.level === "critical";
       const gageLabel =
-        `USGS gage · ${region.name}: ${region.level.toUpperCase()} ` +
+        `USGS gage · ${escapeHtml(region.name)}: ${escapeHtml(region.level.toUpperCase())} ` +
         `(${region.gageHeightFt.toFixed(1)} ft)`;
 
       L.circleMarker([region.lat, region.lon], {
@@ -230,8 +236,8 @@ export default function FloodMap({
           opacity: 0.95,
         })
         .bindPopup(
-          `<strong>USGS gage</strong> · ${region.name}<br/>` +
-            `<span style="color:${color};font-weight:700;text-transform:uppercase">${region.level}</span><br/>` +
+          `<strong>USGS gage</strong> · ${escapeHtml(region.name)}<br/>` +
+            `<span style="color:${color};font-weight:700;text-transform:uppercase">${escapeHtml(region.level)}</span><br/>` +
             `${region.gageHeightFt.toFixed(1)} ft / flood stage ${region.floodStageFt.toFixed(0)} ft ` +
             `(${(region.stageRatio * 100).toFixed(0)}%)<br/>` +
             `<em>Sensor reading at this sim time — not a mapped flood extent</em>`,
@@ -299,7 +305,7 @@ export default function FloodMap({
       const score = threat ? threat.threatScore.toFixed(0) : "—";
       marker.bindPopup(
         `<strong>Flooding signal · mark #${mark.objectId}</strong><br/>` +
-          `${mark.waterbody ?? mark.label ?? "High-water site"}<br/>` +
+          `${escapeHtml(mark.waterbody ?? mark.label ?? "High-water site")}<br/>` +
           `<span style="color:${color};font-weight:700;text-transform:uppercase">${level}</span> (score ${score})<br/>` +
           (threat
             ? `storm ${threat.stormComponent.toFixed(0)} · gauge ${threat.gaugeComponent.toFixed(0)} · hist ${threat.historicalComponent.toFixed(0)}`
@@ -378,7 +384,7 @@ export default function FloodMap({
           L.divIcon({
             className: "waterboard-divicon",
             html:
-              `<div class="waterboard-pair${selected ? " waterboard-pair-selected" : ""}" title="${team.name} on SOS #${req.id}">` +
+              `<div class="waterboard-pair${selected ? " waterboard-pair-selected" : ""}" title="${escapeHtml(team.name)} on SOS #${req.id}">` +
               `<div class="waterboard-chip waterboard-chip-team">TEAM</div>` +
               `<div class="waterboard-chip waterboard-chip-sos waterboard-chip-sos-active${arrival.className}"${arrival.style}>SOS</div>` +
               `</div>`,
@@ -388,8 +394,8 @@ export default function FloodMap({
         )
         .on("click", () => selectRequest(req.id))
         .bindPopup(
-          `<strong>${team.name}</strong> → SOS #${req.id}<br/>` +
-            `${assignment.status}<br/>${req.description}`,
+          `<strong>${escapeHtml(team.name)}</strong> → SOS #${req.id}<br/>` +
+            `${escapeHtml(assignment.status)}<br/>${escapeHtml(req.description)}${req.location ? `<br/>${escapeHtml(req.location)}` : ""}`,
           { autoPan: true },
         )
         .addTo(layers.units);
@@ -410,7 +416,7 @@ export default function FloodMap({
           }),
         )
         .on("click", () => selectRequest(req.id))
-        .bindPopup(`SOS #${req.id}<br/>${req.description}<br/>${req.status}`, {
+        .bindPopup(`SOS #${req.id}<br/>${escapeHtml(req.description)}${req.location ? `<br/>${escapeHtml(req.location)}` : ""}<br/>${escapeHtml(req.status)}`, {
           autoPan: true,
         })
         .addTo(layers.units);
@@ -427,7 +433,7 @@ export default function FloodMap({
             iconAnchor: [28, 14],
           }),
         )
-        .bindPopup(`${team.name}<br/>${team.status}`, { autoPan: true })
+        .bindPopup(`${escapeHtml(team.name)}<br/>${escapeHtml(team.status)}`, { autoPan: true })
         .addTo(layers.teamUnits);
     }
   }, [
