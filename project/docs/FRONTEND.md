@@ -147,7 +147,7 @@ Loaded with `next/dynamic(..., { ssr: false })` from `page.js` because Leaflet n
 | Visual | Look for in `FloodMap.jsx` |
 | --- | --- |
 | Threat colors | `LEVEL_COLORS` / `LEVEL_FILL` |
-| Flood zone circles + pulse | loop over `threatRegions` |
+| Flood zone circles | loop over `threatRegions` |
 | Permanent labels on hot gages | `bindTooltip(..., { permanent: isHot })` |
 | Storm track + eye | `stormPath` / `currentStorm` |
 | Threatened flood-mark dots | loop over `floodMarks` + `siteThreats` (skips `none`) |
@@ -178,7 +178,7 @@ Restart `npm run dev` after changing env files.
 | Approach | Where |
 | --- | --- |
 | Dashboard layout / buttons | `app/globals.css` |
-| Map-only CSS | `<style>` inside `FloodMap.jsx` (pulse, popup z-index) |
+| Map-only CSS | `<style>` inside `FloodMap.jsx` (popup z-index) |
 
 There is no Tailwind / component library in this project yet — add one only if the team agrees.
 
