@@ -1,7 +1,7 @@
 import { schema, table, t, SenderError } from "spacetimedb/server";
 
 /**
- * FloodWatch minimal MVP schema.
+ * The WaterBoard minimal MVP schema.
  * Historical flood CSVs / map layers can be added later.
  * This backend focuses on: simulation clock → SOS → priority → dispatch.
  */
@@ -374,7 +374,7 @@ export const init = spacetimedb.init((ctx) => {
     updatedAt: ctx.timestamp,
   });
 
-  logActivity(ctx, "init", "FloodWatch module initialized with demo teams");
+  logActivity(ctx, "init", "The WaterBoard module initialized with demo teams");
 });
 
 export const onConnect = spacetimedb.clientConnected((_ctx) => {});

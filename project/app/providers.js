@@ -16,10 +16,10 @@ function toWsUri(raw) {
   return `ws://${value}`;
 }
 
-// Local FloodWatch DB (see project/spacetime.json). Override with env if needed.
+// Local The WaterBoard DB (see project/spacetime.json). Override with env if needed.
 const HOST = toWsUri(process.env.NEXT_PUBLIC_SPACETIMEDB_HOST ?? 'ws://127.0.0.1:3000');
 const DB_NAME =
-  process.env.NEXT_PUBLIC_SPACETIMEDB_DB_NAME ?? 'floodwatch';
+  process.env.NEXT_PUBLIC_SPACETIMEDB_DB_NAME ?? 'waterboard';
 const TOKEN_KEY = `${HOST}/${DB_NAME}/auth_token`;
 
 const onConnect = (_conn, identity, token) => {

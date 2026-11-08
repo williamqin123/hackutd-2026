@@ -2,7 +2,7 @@ import { Providers } from './providers';
 import './globals.css';
 
 export const metadata = {
-  title: 'FloodWatch',
+  title: 'The WaterBoard',
   description: 'Historical flood-response simulation and dispatch coordination',
 };
 

@@ -174,7 +174,7 @@ export default function Home() {
         lineHeight: 1.4,
       }}
     >
-      <h1 style={{ marginBottom: 4 }}>FloodWatch</h1>
+      <h1 style={{ marginBottom: 4 }}>The WaterBoard</h1>
       <p style={{ marginTop: 0, color: "#475569" }}>
         Historical Harvey replay · live threat regions from storm track + USGS
         gages + high-water marks. Modelled scores for demo — not official

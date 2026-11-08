@@ -3,6 +3,6 @@
     "run": "npm run dev"
   },
   "module-path": "./spacetimedb",
-  "database": "floodwatch",
+  "database": "waterboard",
   "server": "local"
 }
