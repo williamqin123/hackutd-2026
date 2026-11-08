@@ -334,7 +334,7 @@ export default function MobileSosPage() {
 
     try {
       const conn = getConnection();
-      if (!conn) {
+      if (!conn || !isActive) {
         throw new Error(
           "Waiting for connection to SpacetimeDB… please check your connection and try again.",
         );
@@ -797,7 +797,7 @@ export default function MobileSosPage() {
 
                   <button
                     type="submit"
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || !isActive}
                     className="sos-submit-btn"
                   >
                     {isSubmitting ? (
@@ -836,7 +836,7 @@ export default function MobileSosPage() {
                           <line x1="22" y1="2" x2="11" y2="13" />
                           <polygon points="22 2 15 22 11 13 2 9 22 2" />
                         </svg>
-                        Submit SOS
+                        {isActive ? "Submit SOS" : "Connecting…"}
                       </>
                     )}
                   </button>
