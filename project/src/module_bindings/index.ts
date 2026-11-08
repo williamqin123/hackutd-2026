@@ -47,6 +47,7 @@ import SeedFloodMarksReducer from "./seed_flood_marks_reducer";
 import SeedGaugeReadingsReducer from "./seed_gauge_readings_reducer";
 import SeedGaugeStationsReducer from "./seed_gauge_stations_reducer";
 import SeedStormTrackReducer from "./seed_storm_track_reducer";
+import SeekSimulationReducer from "./seek_simulation_reducer";
 import SetSimulationPlayingReducer from "./set_simulation_playing_reducer";
 import SetSimulationSpeedReducer from "./set_simulation_speed_reducer";
 import SetTeamStatusReducer from "./set_team_status_reducer";
@@ -240,6 +241,7 @@ const reducersSchema = __reducers(
   __reducerSchema("seed_gauge_readings", SeedGaugeReadingsReducer),
   __reducerSchema("seed_gauge_stations", SeedGaugeStationsReducer),
   __reducerSchema("seed_storm_track", SeedStormTrackReducer),
+  __reducerSchema("seek_simulation", SeekSimulationReducer),
   __reducerSchema("set_simulation_playing", SetSimulationPlayingReducer),
   __reducerSchema("set_simulation_speed", SetSimulationSpeedReducer),
   __reducerSchema("set_team_status", SetTeamStatusReducer),

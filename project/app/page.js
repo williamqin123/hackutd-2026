@@ -13,7 +13,7 @@ const FloodMap = dynamic(() => import("./FloodMap"), {
   loading: () => (
     <div
       style={{
-        height: 480,
+        height: 520,
         borderRadius: 12,
         border: "1px solid #cbd5e1",
         display: "grid",
@@ -29,10 +29,35 @@ const FloodMap = dynamic(() => import("./FloodMap"), {
 
 const REGION = "houston-harvey";
 const HOUR_MICROS = 3_600_000_000n;
+const STEP_MICROS = 8n * HOUR_MICROS; // play / default advance = 8 sim-hours
+const DAY_MICROS = 24n * HOUR_MICROS;
+// Harvey Houston window covered by our USGS extract
+const SIM_START_MICROS = 1503619200000000n; // 2017-08-25T00:00:00Z
+const SIM_END_MICROS = 1504310400000000n; // 2017-09-02T00:00:00Z
+const PLAY_INTERVAL_MS = 350; // faster ticks
 
 function microsLabel(micros) {
   if (micros === undefined || micros === null) return "—";
   return new Date(Number(micros / 1000n)).toISOString().replace("T", " ").slice(0, 16) + "Z";
+}
+
+function clampMicros(value) {
+  if (value < SIM_START_MICROS) return SIM_START_MICROS;
+  if (value > SIM_END_MICROS) return SIM_END_MICROS;
+  return value;
+}
+
+function microsToSlider(micros) {
+  const span = Number(SIM_END_MICROS - SIM_START_MICROS);
+  const offset = Number((micros ?? SIM_START_MICROS) - SIM_START_MICROS);
+  return Math.max(0, Math.min(1000, Math.round((offset / span) * 1000)));
+}
+
+function sliderToMicros(sliderValue) {
+  const span = SIM_END_MICROS - SIM_START_MICROS;
+  const micros =
+    SIM_START_MICROS + (span * BigInt(sliderValue)) / 1000n;
+  return clampMicros(micros);
 }
 
 export default function Home() {
@@ -56,7 +81,11 @@ export default function Home() {
   const [stormCsv, setStormCsv] = useState([]);
   const [usgsPayload, setUsgsPayload] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [sliderValue, setSliderValue] = useState(0);
+  const [scrubbing, setScrubbing] = useState(false);
   const playingRef = useRef(false);
+  const tickingRef = useRef(false);
+  const autoSeededRef = useRef(false);
 
   const ready =
     simReady &&
@@ -72,6 +101,13 @@ export default function Home() {
     regionReady;
 
   const sim = simulations.find((s) => s.regionTag === REGION) ?? simulations[0];
+  const needsSeed =
+    ready &&
+    isActive &&
+    (floodMarks.length === 0 ||
+      stormPoints.length === 0 ||
+      gaugeStations.length === 0 ||
+      gaugeReadings.length === 0);
 
   useEffect(() => {
     loadFloodMarks()
@@ -84,6 +120,12 @@ export default function Home() {
       .then(setUsgsPayload)
       .catch((err) => setError(`load USGS gauges: ${String(err)}`));
   }, []);
+
+  // Keep slider in sync with sim clock unless the user is dragging it.
+  useEffect(() => {
+    if (scrubbing || !sim) return;
+    setSliderValue(microsToSlider(sim.simTimeMicros));
+  }, [sim?.simTimeMicros, scrubbing]);
 
   const pendingSorted = useMemo(
     () =>
@@ -122,6 +164,9 @@ export default function Home() {
   }
 
   async function seedAllHistorical() {
+    if (!floodCsv.length || !stormCsv.length || !usgsPayload) {
+      throw new Error("Historical files still loading — wait a second and retry");
+    }
     setBusy(true);
     try {
       await run("seed flood marks", (c) =>
@@ -130,14 +175,18 @@ export default function Home() {
       await run("seed storm track", (c) =>
         c.reducers.seedStormTrack({ points: stormCsv }),
       );
-      if (usgsPayload) {
-        await run("seed gauge stations", (c) =>
-          c.reducers.seedGaugeStations({ stations: usgsPayload.stations }),
-        );
-        await run("seed gauge readings", (c) =>
-          c.reducers.seedGaugeReadings({ readings: usgsPayload.readings }),
-        );
-      }
+      await run("seed gauge stations", (c) =>
+        c.reducers.seedGaugeStations({ stations: usgsPayload.stations }),
+      );
+      await run("seed gauge readings", (c) =>
+        c.reducers.seedGaugeReadings({ readings: usgsPayload.readings }),
+      );
+      await run("seek start", (c) =>
+        c.reducers.seekSimulation({
+          regionTag: REGION,
+          simTimeMicros: SIM_START_MICROS,
+        }),
+      );
       await run("recompute threats", (c) =>
         c.reducers.recomputeThreats({ regionTag: REGION }),
       );
@@ -146,19 +195,47 @@ export default function Home() {
     }
   }
 
-  async function tickHour() {
-    await run("advance 1h", (c) =>
-      c.reducers.advanceSimulation({
+  // Auto-seed once when connected to an empty waterboard DB.
+  useEffect(() => {
+    if (!needsSeed || autoSeededRef.current || busy) return;
+    if (!floodCsv.length || !stormCsv.length || !usgsPayload) return;
+    autoSeededRef.current = true;
+    void seedAllHistorical().catch(() => {
+      autoSeededRef.current = false;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [needsSeed, floodCsv.length, stormCsv.length, usgsPayload, busy]);
+
+  async function advanceBy(deltaMicros, label) {
+    const current = sim?.simTimeMicros ?? SIM_START_MICROS;
+    const next = clampMicros(current + deltaMicros);
+    if (next === current) {
+      await run("pause at end", (c) =>
+        c.reducers.setSimulationPlaying({ regionTag: REGION, isPlaying: false }),
+      );
+      return;
+    }
+    await run(label, async (c) => {
+      await c.reducers.advanceSimulation({
         regionTag: REGION,
-        deltaMicros: HOUR_MICROS,
-      }),
-    );
-    await run("recompute threats", (c) =>
-      c.reducers.recomputeThreats({ regionTag: REGION }),
-    );
+        deltaMicros: next - current,
+      });
+      await c.reducers.recomputeThreats({ regionTag: REGION });
+    });
   }
 
-  // Auto-play: when simulation isPlaying, advance one sim-hour + recompute threats.
+  async function seekTo(micros) {
+    const target = clampMicros(micros);
+    await run("seek", async (c) => {
+      await c.reducers.seekSimulation({
+        regionTag: REGION,
+        simTimeMicros: target,
+      });
+      await c.reducers.recomputeThreats({ regionTag: REGION });
+    });
+  }
+
+  // Auto-play: fast 8-hour jumps.
   useEffect(() => {
     playingRef.current = Boolean(sim?.isPlaying);
   }, [sim?.isPlaying]);
@@ -168,14 +245,21 @@ export default function Home() {
 
     let cancelled = false;
     const handle = setInterval(() => {
-      if (cancelled || !playingRef.current || busy) return;
-      void tickHour().catch(() => {
-        // Errors surface via setError inside run(); pause on failure.
-        void run("pause", (c) =>
-          c.reducers.setSimulationPlaying({ regionTag: REGION, isPlaying: false }),
-        );
-      });
-    }, 1200);
+      if (cancelled || !playingRef.current || busy || tickingRef.current) return;
+      tickingRef.current = true;
+      void advanceBy(STEP_MICROS, "play tick +8h")
+        .catch(() =>
+          run("pause", (c) =>
+            c.reducers.setSimulationPlaying({
+              regionTag: REGION,
+              isPlaying: false,
+            }),
+          ),
+        )
+        .finally(() => {
+          tickingRef.current = false;
+        });
+    }, PLAY_INTERVAL_MS);
 
     return () => {
       cancelled = true;
@@ -207,8 +291,25 @@ export default function Home() {
         Data: <strong>{ready ? "ready" : "loading"}</strong>
         {" · "}
         Sim: <strong>{sim ? microsLabel(sim.simTimeMicros) : "—"}</strong>
-        {sim?.isPlaying ? " · LIVE" : " · paused"}
+        {sim?.isPlaying ? " · LIVE (+8h ticks)" : " · paused"}
       </p>
+
+      {needsSeed && (
+        <div
+          style={{
+            background: "#fef3c7",
+            border: "1px solid #f59e0b",
+            color: "#92400e",
+            padding: "12px 14px",
+            borderRadius: 10,
+            marginBottom: 12,
+          }}
+        >
+          <strong>No flood layers in the database yet.</strong> Colored regions
+          appear only after historical data is seeded.{" "}
+          {busy ? "Seeding automatically…" : "Click seed below if this stays empty."}
+        </div>
+      )}
 
       <FloodMap
         simTimeMicros={sim?.simTimeMicros}
@@ -219,6 +320,39 @@ export default function Home() {
         requests={requests}
         teams={teams}
       />
+
+      <section style={{ marginTop: 20 }}>
+        <h2>Timeline scrubber</h2>
+        <p style={{ marginTop: 0 }}>
+          {microsLabel(SIM_START_MICROS)} → {microsLabel(SIM_END_MICROS)}
+        </p>
+        <input
+          type="range"
+          min={0}
+          max={1000}
+          step={1}
+          value={sliderValue}
+          disabled={!isActive || busy}
+          onMouseDown={() => setScrubbing(true)}
+          onTouchStart={() => setScrubbing(true)}
+          onChange={(e) => setSliderValue(Number(e.target.value))}
+          onMouseUp={(e) => {
+            const value = Number(e.target.value);
+            setScrubbing(false);
+            void seekTo(sliderToMicros(value));
+          }}
+          onTouchEnd={(e) => {
+            const value = Number(e.target.value);
+            setScrubbing(false);
+            void seekTo(sliderToMicros(value));
+          }}
+          style={{ width: "100%" }}
+        />
+        <p style={{ fontSize: 13, color: "#64748b" }}>
+          Drag and release to jump. Scrub toward late Aug 27–29 to see gage flood
+          zones light up.
+        </p>
+      </section>
 
       <section style={{ marginTop: 20 }}>
         <h2>Threat snapshot</h2>
@@ -249,11 +383,14 @@ export default function Home() {
           {gaugeStations.length} · readings: {gaugeReadings.length}
         </p>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button disabled={!isActive || busy || floodCsv.length === 0} onClick={() => void seedAllHistorical()}>
+          <button
+            disabled={!isActive || busy || floodCsv.length === 0 || !usgsPayload}
+            onClick={() => void seedAllHistorical().catch(() => {})}
+          >
             {busy ? "Seeding..." : "Seed all historical (CSV + USGS)"}
           </button>
           <button
-            disabled={!isActive}
+            disabled={!isActive || busy}
             onClick={() =>
               void run("recompute threats", (c) =>
                 c.reducers.recomputeThreats({ regionTag: REGION }),
@@ -263,18 +400,13 @@ export default function Home() {
             Recompute threats now
           </button>
         </div>
-        <p style={{ fontSize: 13, color: "#64748b" }}>
-          Formula: threat = 0.40·storm(proximity×wind) + 0.45·gauge(height/flood-stage×proximity)
-          + 0.15·historical(mark already surveyed by sim time). Regions expand around gages
-          as stage rises.
-        </p>
       </section>
 
       <section style={{ marginTop: 20 }}>
-        <h2>Simulation clock (hourly)</h2>
+        <h2>Simulation clock</h2>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button
-            disabled={!isActive}
+            disabled={!isActive || busy}
             onClick={() =>
               void run("play", (c) =>
                 c.reducers.setSimulationPlaying({
@@ -284,7 +416,7 @@ export default function Home() {
               )
             }
           >
-            Play (auto +1h)
+            Play (fast +8h)
           </button>
           <button
             disabled={!isActive}
@@ -299,22 +431,37 @@ export default function Home() {
           >
             Pause
           </button>
-          <button disabled={!isActive || busy} onClick={() => void tickHour()}>
-            Advance 1 sim-hour
+          <button
+            disabled={!isActive || busy}
+            onClick={() => void advanceBy(STEP_MICROS, "advance 8h")}
+          >
+            Advance 8 hours
           </button>
           <button
-            disabled={!isActive}
+            disabled={!isActive || busy}
+            onClick={() => void advanceBy(DAY_MICROS, "advance 1 day")}
+          >
+            Advance 1 day
+          </button>
+          <button
+            disabled={!isActive || busy}
             onClick={() =>
               void run("reset", async (c) => {
                 await c.reducers.resetSimulation({
                   regionTag: REGION,
-                  simTimeMicros: 1503619200000000n,
+                  simTimeMicros: SIM_START_MICROS,
                 });
                 await c.reducers.recomputeThreats({ regionTag: REGION });
               })
             }
           >
             Reset to Aug 25
+          </button>
+          <button
+            disabled={!isActive || busy}
+            onClick={() => void seekTo(1503921600000000n)}
+          >
+            Jump to Aug 28 peak
           </button>
         </div>
       </section>

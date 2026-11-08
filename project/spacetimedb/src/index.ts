@@ -511,6 +511,21 @@ export const resetSimulation = spacetimedb.reducer(
   },
 );
 
+/** Jump the disaster clock to an absolute sim time (timeline scrubber). */
+export const seekSimulation = spacetimedb.reducer(
+  { regionTag: t.string(), simTimeMicros: t.i64() },
+  (ctx, { regionTag, simTimeMicros }) => {
+    const sim = ctx.db.simulationState.regionTag.find(regionTag);
+    if (!sim) throw new SenderError(`Simulation not found: ${regionTag}`);
+
+    ctx.db.simulationState.id.update({
+      ...sim,
+      simTimeMicros,
+      updatedAt: ctx.timestamp,
+    });
+  },
+);
+
 export const createRescueRequest = spacetimedb.reducer(
   {
     lat: t.f64(),
