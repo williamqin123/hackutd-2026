@@ -3,6 +3,6 @@
     "run": "npm run dev"
   },
   "module-path": "./spacetimedb",
-  "database": "hackutd-2026-t3uux",
-  "server": "maincloud"
+  "database": "floodwatch",
+  "server": "local"
 }

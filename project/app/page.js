@@ -1,296 +1,277 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  connectSpacetimeDB,
-  deleteAllFloods,
-  getExistingFloodIds,
-  getResumeIndex,
-  insertFlood,
-  INTERVAL_MS,
-  loadFloodCsv,
-} from "../lib/spacetimedb-server";
+import { useEffect, useMemo, useState } from "react";
+import { useSpacetimeDB, useTable } from "spacetimedb/react";
+import { tables } from "../src/module_bindings";
+import { loadFloodMarks } from "../lib/floods";
 
 export default function Home() {
-  const [rows, setRows] = useState([]);
-  const [cursor, setCursor] = useState(0);
-  const [playing, setPlaying] = useState(false);
-  const [connected, setConnected] = useState(false);
-  const [ready, setReady] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const { isActive, getConnection } = useSpacetimeDB();
+  const conn = getConnection();
+
+  const [simulations, simReady] = useTable(tables.simulationState);
+  const [requests, reqReady] = useTable(tables.rescueRequest);
+  const [teams, teamsReady] = useTable(tables.rescueTeam);
+  const [assignments, assignReady] = useTable(tables.dispatchAssignment);
+  const [events, eventsReady] = useTable(tables.activityEvent);
+  const [floodMarks, floodReady] = useTable(tables.floodMark);
   const [error, setError] = useState(null);
 
-  const connectionRef = useRef(null);
-  const rowsRef = useRef([]);
-  const knownIdsRef = useRef(new Set());
+  const [floodCsv, setFloodCsv] = useState([]);
+  const [seeding, setSeeding] = useState(false);
 
-  const playingRef = useRef(false);
-  const busyRef = useRef(false);
-  const resettingRef = useRef(false);
-  const readyRef = useRef(false);
+  const ready =
+    simReady && reqReady && teamsReady && assignReady && eventsReady && floodReady;
 
-  const updatePlaying = useCallback((value) => {
-    playingRef.current = value;
-    setPlaying(value);
+  useEffect(() => {
+    loadFloodMarks()
+      .then(setFloodCsv)
+      .catch((err) => setError(`load flood CSV: ${String(err)}`));
   }, []);
 
-  const syncProgress = useCallback(() => {
-    if (resettingRef.current) return;
+  const pendingSorted = useMemo(
+    () =>
+      [...requests]
+        .filter((r) => r.status === "pending" || r.status === "recommended")
+        .sort((a, b) => b.priorityScore - a.priorityScore),
+    [requests],
+  );
 
-    const next = getResumeIndex(rowsRef.current, knownIdsRef.current);
-
-    setCursor(next);
-
-    if (next >= rowsRef.current.length) {
-      updatePlaying(false);
-    }
-  }, [updatePlaying]);
-
-  useEffect(() => {
-    let cancelled = false;
-    let csvLoaded = false;
-    let subscriptionLoaded = false;
-
-    function markReady() {
-      if (cancelled || !csvLoaded || !subscriptionLoaded) {
-        return;
-      }
-
-      syncProgress();
-      readyRef.current = true;
-      setReady(true);
-    }
-
-    void loadFloodCsv()
-      .then((data) => {
-        if (cancelled) return;
-
-        rowsRef.current = data;
-        setRows(data);
-
-        csvLoaded = true;
-        markReady();
-      })
-      .catch((err) => {
-        if (!cancelled) setError(String(err));
-      });
-
-    const connection = connectSpacetimeDB(
-      (ctx) => {
-        if (cancelled) return;
-
-        setConnected(true);
-
-        ctx.db.floodData.onInsert((_event, flood) => {
-          if (cancelled) return;
-
-          knownIdsRef.current.add(flood.objectid.toString());
-
-          syncProgress();
-        });
-
-        ctx.db.floodData.onDelete((_event, flood) => {
-          if (cancelled) return;
-
-          knownIdsRef.current.delete(flood.objectid.toString());
-
-          syncProgress();
-        });
-
-        ctx
-          .subscriptionBuilder()
-          .onApplied((subCtx) => {
-            if (cancelled) return;
-
-            knownIdsRef.current = getExistingFloodIds(subCtx);
-
-            subscriptionLoaded = true;
-            markReady();
-          })
-          .onError((_ctx, err) => {
-            if (!cancelled) setError(String(err));
-          })
-          .subscribe(["SELECT * FROM floodData"]);
-      },
-      () => {
-        if (cancelled) return;
-
-        setConnected(false);
-        setReady(false);
-        readyRef.current = false;
-        updatePlaying(false);
-      },
-      (err) => {
-        if (!cancelled) setError(err.message);
-      },
-    );
-
-    connectionRef.current = connection;
-
-    return () => {
-      cancelled = true;
-      readyRef.current = false;
-      playingRef.current = false;
-      connectionRef.current = null;
-      connection.disconnect();
-    };
-  }, [syncProgress, updatePlaying]);
+  const recentEvents = useMemo(
+    () =>
+      [...events]
+        .sort(
+          (a, b) =>
+            Number(b.createdAt.microsSinceUnixEpoch - a.createdAt.microsSinceUnixEpoch),
+        )
+        .slice(0, 8),
+    [events],
+  );
 
   useEffect(() => {
-    if (!playing || !ready) return;
-
-    const timer = setInterval(() => {
-      const connection = connectionRef.current;
-
-      if (
-        !connection ||
-        !connection.isActive ||
-        !playingRef.current ||
-        !readyRef.current ||
-        busyRef.current ||
-        resettingRef.current
-      ) {
-        return;
-      }
-
-      const index = getResumeIndex(rowsRef.current, knownIdsRef.current);
-
-      const row = rowsRef.current[index];
-
-      if (!row) {
-        updatePlaying(false);
-        return;
-      }
-
-      busyRef.current = true;
-      setBusy(true);
-
-      void (async () => {
-        try {
-          await insertFlood(connection, row);
-
-          knownIdsRef.current.add(row.OBJECTID.trim());
-
-          syncProgress();
-        } catch (err) {
-          updatePlaying(false);
-          setError(String(err));
-        } finally {
-          busyRef.current = false;
-          setBusy(false);
-        }
-      })();
-    }, INTERVAL_MS);
-
-    return () => clearInterval(timer);
-  }, [playing, ready, syncProgress, updatePlaying]);
-
-  const reset = async () => {
-    const connection = connectionRef.current;
-
-    if (
-      !connection ||
-      !connection.isActive ||
-      !readyRef.current ||
-      busyRef.current
-    ) {
-      return;
-    }
-
-    updatePlaying(false);
-    resettingRef.current = true;
-    busyRef.current = true;
-    setBusy(true);
     setError(null);
+  }, [isActive]);
 
+  async function run(label, fn) {
+    setError(null);
     try {
-      await deleteAllFloods(connection);
-
-      knownIdsRef.current.clear();
-      setCursor(0);
+      if (!conn || !isActive) throw new Error("Not connected to SpacetimeDB");
+      await fn(conn);
     } catch (err) {
-      setError(String(err));
-    } finally {
-      resettingRef.current = false;
-      busyRef.current = false;
-      setBusy(false);
-
-      syncProgress();
+      setError(`${label}: ${err instanceof Error ? err.message : String(err)}`);
     }
-  };
-
-  const progress = rows.length ? Math.round((cursor / rows.length) * 100) : 0;
-
-  const nextRow = rows[cursor];
+  }
 
   return (
     <main
       style={{
-        maxWidth: 720,
+        maxWidth: 880,
         margin: "0 auto",
         padding: "2rem",
         fontFamily: "system-ui, sans-serif",
+        lineHeight: 1.4,
       }}
     >
-      <h1>Flood Data Simulation</h1>
-
-      <p>Database: {connected ? "Connected" : "Disconnected"}</p>
-
-      <p>Status: {!ready ? "Loading" : playing ? "Playing" : "Paused"}</p>
-
+      <h1>FloodWatch</h1>
       <p>
-        Records processed: {cursor} / {rows.length}
+        Minimal Spacetime backend: simulation clock, SOS requests, teams, and
+        dispatch recommendations.
       </p>
 
-      <div
-        style={{
-          height: 12,
-          background: "#ddd",
-          borderRadius: 6,
-          overflow: "hidden",
-          marginBottom: 20,
-        }}
-      >
-        <div
-          style={{
-            height: "100%",
-            width: `${progress}%`,
-            background: "#2563eb",
-          }}
-        />
-      </div>
+      <p>
+        Connection: <strong>{isActive ? "connected" : "disconnected"}</strong>
+        {" · "}
+        Data: <strong>{ready ? "ready" : "loading"}</strong>
+      </p>
 
-      <p>Progress: {progress}%</p>
+      <section style={{ marginTop: 24 }}>
+        <h2>Simulation</h2>
+        {simulations.map((sim) => (
+          <p key={String(sim.id)}>
+            {sim.regionTag}: {sim.isPlaying ? "playing" : "paused"} · speed{" "}
+            {sim.speedMultiplier}x · simTimeMicros={String(sim.simTimeMicros)}
+          </p>
+        ))}
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button
+            disabled={!isActive}
+            onClick={() =>
+              void run("play", (c) =>
+                c.reducers.setSimulationPlaying({
+                  regionTag: "houston-harvey",
+                  isPlaying: true,
+                }),
+              )
+            }
+          >
+            Play
+          </button>
+          <button
+            disabled={!isActive}
+            onClick={() =>
+              void run("pause", (c) =>
+                c.reducers.setSimulationPlaying({
+                  regionTag: "houston-harvey",
+                  isPlaying: false,
+                }),
+              )
+            }
+          >
+            Pause
+          </button>
+          <button
+            disabled={!isActive}
+            onClick={() =>
+              void run("advance", (c) =>
+                c.reducers.advanceSimulation({
+                  regionTag: "houston-harvey",
+                  deltaMicros: 3_600_000_000n,
+                }),
+              )
+            }
+          >
+            Advance 1 sim-hour
+          </button>
+        </div>
+      </section>
 
-      <p>Next record: {nextRow?.OBJECTID ?? "Complete"}</p>
+      <section style={{ marginTop: 24 }}>
+        <h2>Historical flood marks</h2>
+        <p>
+          In database: <strong>{floodMarks.length}</strong> · parsed from CSV:{" "}
+          <strong>{floodCsv.length}</strong>{" "}
+          <span style={{ color: "#6b7280" }}>(real USGS observations)</span>
+        </p>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button
+            disabled={!isActive || seeding || floodCsv.length === 0}
+            onClick={() => {
+              setSeeding(true);
+              void run("seed flood marks", (c) =>
+                c.reducers.seedFloodMarks({ marks: floodCsv }),
+              ).finally(() => setSeeding(false));
+            }}
+          >
+            {seeding ? "Seeding..." : "Seed flood marks (one-time)"}
+          </button>
+          <button
+            disabled={!isActive || floodMarks.length === 0}
+            onClick={() => void run("clear flood marks", (c) => c.reducers.clearFloodMarks())}
+          >
+            Clear flood marks
+          </button>
+        </div>
+      </section>
 
-      <p>Next survey date: {nextRow?.SurveyDate ?? "N/A"}</p>
+      <section style={{ marginTop: 24 }}>
+        <h2>Actions</h2>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button
+            disabled={!isActive}
+            onClick={() =>
+              void run("create SOS", (c) =>
+                c.reducers.createRescueRequest({
+                  lat: 29.75,
+                  lon: -95.37,
+                  peopleCount: 3,
+                  medicalUrgent: true,
+                  stranded: true,
+                  needsTransport: true,
+                  description: "Family stranded on roof, medical need",
+                }),
+              )
+            }
+          >
+            Create urgent SOS
+          </button>
+          <button
+            disabled={!isActive}
+            onClick={() =>
+              void run("create SOS", (c) =>
+                c.reducers.createRescueRequest({
+                  lat: 29.78,
+                  lon: -95.4,
+                  peopleCount: 1,
+                  medicalUrgent: false,
+                  stranded: false,
+                  needsTransport: false,
+                  description: "Needs sandbags / non-urgent help",
+                }),
+              )
+            }
+          >
+            Create low-priority SOS
+          </button>
+          <button
+            disabled={!isActive}
+            onClick={() => void run("recommend", (c) => c.reducers.recommendDispatch())}
+          >
+            Recommend dispatch
+          </button>
+          <button
+            disabled={!isActive || assignments.every((a) => a.status !== "recommended")}
+            onClick={() => {
+              const next = assignments.find((a) => a.status === "recommended");
+              if (!next) return;
+              void run("confirm", (c) =>
+                c.reducers.confirmDispatch({ assignmentId: next.id }),
+              );
+            }}
+          >
+            Confirm first recommendation
+          </button>
+        </div>
+      </section>
 
-      <div
-        style={{
-          display: "flex",
-          gap: 12,
-          marginTop: 24,
-        }}
-      >
-        <button
-          disabled={!ready || busy || playing || cursor >= rows.length}
-          onClick={() => updatePlaying(true)}
-        >
-          Play
-        </button>
+      <section style={{ marginTop: 24 }}>
+        <h2>Teams ({teams.length})</h2>
+        <ul>
+          {teams.map((team) => (
+            <li key={String(team.id)}>
+              {team.name} · {team.status} · cap {team.capacity}
+              {team.hasMedical ? " · medical" : ""}
+              {team.hasBoat ? " · boat" : ""}
+            </li>
+          ))}
+        </ul>
+      </section>
 
-        <button disabled={!playing} onClick={() => updatePlaying(false)}>
-          Pause
-        </button>
+      <section style={{ marginTop: 24 }}>
+        <h2>Priority queue</h2>
+        <ul>
+          {pendingSorted.map((req) => (
+            <li key={String(req.id)}>
+              #{String(req.id)} score={req.priorityScore} · {req.status} ·{" "}
+              {req.description}
+            </li>
+          ))}
+          {pendingSorted.length === 0 && <li>No open requests</li>}
+        </ul>
+      </section>
 
-        <button
-          disabled={!ready || busy || !connected}
-          onClick={() => void reset()}
-        >
-          {busy ? "Processing..." : "Reset"}
-        </button>
-      </div>
+      <section style={{ marginTop: 24 }}>
+        <h2>Assignments</h2>
+        <ul>
+          {assignments.map((a) => (
+            <li key={String(a.id)}>
+              #{String(a.id)} request={String(a.requestId)} team={String(a.teamId)} ·{" "}
+              {a.status}
+            </li>
+          ))}
+          {assignments.length === 0 && <li>None yet</li>}
+        </ul>
+      </section>
+
+      <section style={{ marginTop: 24 }}>
+        <h2>Activity</h2>
+        <ul>
+          {recentEvents.map((e) => (
+            <li key={String(e.id)}>
+              [{e.kind}] {e.message}
+            </li>
+          ))}
+        </ul>
+      </section>
 
       {error && <p style={{ color: "#b91c1c" }}>{error}</p>}
     </main>

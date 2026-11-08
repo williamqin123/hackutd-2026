@@ -10,6 +10,14 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default {
-  objectid: __t.i64(),
-};
+export default __t.row({
+  id: __t.u64().primaryKey(),
+  name: __t.string(),
+  lat: __t.f64(),
+  lon: __t.f64(),
+  capacity: __t.u32(),
+  hasMedical: __t.bool().name("has_medical"),
+  hasBoat: __t.bool().name("has_boat"),
+  status: __t.string(),
+  updatedAt: __t.timestamp().name("updated_at"),
+});

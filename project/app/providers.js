@@ -4,9 +4,22 @@ import { useMemo } from 'react';
 import { SpacetimeDBProvider } from 'spacetimedb/react';
 import { DbConnection } from '../src/module_bindings';
 
-const HOST =
-  process.env.NEXT_PUBLIC_SPACETIMEDB_HOST ?? 'wss://maincloud.spacetimedb.com';
-const DB_NAME = process.env.NEXT_PUBLIC_SPACETIMEDB_DB_NAME ?? 'nextjs-ts';
+// Normalize an http(s):// or ws(s):// host into a websocket URI without a
+// trailing slash. Lets us reuse the same env values a partner used for an
+// http-style SpacetimeDB host.
+function toWsUri(raw) {
+  const value = (raw ?? '').trim().replace(/\/+$/, '');
+  if (!value) return 'ws://127.0.0.1:3000';
+  if (value.startsWith('https://')) return `wss://${value.slice('https://'.length)}`;
+  if (value.startsWith('http://')) return `ws://${value.slice('http://'.length)}`;
+  if (value.startsWith('ws://') || value.startsWith('wss://')) return value;
+  return `ws://${value}`;
+}
+
+// Local FloodWatch DB (see project/spacetime.json). Override with env if needed.
+const HOST = toWsUri(process.env.NEXT_PUBLIC_SPACETIMEDB_HOST ?? 'ws://127.0.0.1:3000');
+const DB_NAME =
+  process.env.NEXT_PUBLIC_SPACETIMEDB_DB_NAME ?? 'floodwatch';
 const TOKEN_KEY = `${HOST}/${DB_NAME}/auth_token`;
 
 const onConnect = (_conn, identity, token) => {
@@ -38,6 +51,7 @@ export function Providers({ children }) {
             ? localStorage.getItem(TOKEN_KEY) || undefined
             : undefined
         )
+        .withAutomaticReconnect()
         .onConnect(onConnect)
         .onDisconnect(onDisconnect)
         .onConnectError(onConnectError),

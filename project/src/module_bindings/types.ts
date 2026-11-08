@@ -10,42 +10,90 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export const FloodData = __t.object("FloodData", {
-  objectid: __t.i64(),
-  latitudeDd: __t.f64(),
-  longitudeDd: __t.f64(),
-  eventName: __t.string(),
-  hwmTypeName: __t.string(),
-  hwmQualityName: __t.string(),
-  verticalDatumName: __t.string(),
-  verticalMethodName: __t.string(),
-  horizontalMethodName: __t.string(),
-  horizontalDatumName: __t.string(),
-  siteNo: __t.option(__t.string()),
-  siteDescription: __t.option(__t.string()),
-  countyName: __t.option(__t.string()),
-  siteZone: __t.option(__t.string()),
-  sitePermHousing: __t.option(__t.string()),
-  hwmId: __t.option(__t.i64()),
-  waterbody: __t.option(__t.string()),
-  siteId: __t.option(__t.i64()),
-  eventId: __t.option(__t.i64()),
-  hwmTypeId: __t.option(__t.i64()),
-  hwmQualityId: __t.option(__t.i64()),
-  hwmLocationdescription: __t.option(__t.string()),
-  surveyDate: __t.option(__t.string()),
-  elevFt: __t.option(__t.f64()),
-  bank: __t.option(__t.string()),
-  markerId: __t.option(__t.i64()),
-  heightAboveGnd: __t.option(__t.f64()),
-  hwmEnvironment: __t.option(__t.string()),
-  hwmLabel: __t.option(__t.string()),
-  surveyDate: __t.string(),
+export const ActivityEvent = __t.object("ActivityEvent", {
+  id: __t.u64(),
+  kind: __t.string(),
+  message: __t.string(),
+  relatedRequestId: __t.option(__t.u64()),
+  relatedTeamId: __t.option(__t.u64()),
+  createdAt: __t.timestamp(),
 });
-export type FloodData = __Infer<typeof FloodData>;
+export type ActivityEvent = __Infer<typeof ActivityEvent>;
 
-export const GetFloodsAfter = __t.object("GetFloodsAfter", {
-  timestamp: __t.string(),
+export const DispatchAssignment = __t.object("DispatchAssignment", {
+  id: __t.u64(),
+  requestId: __t.u64(),
+  teamId: __t.u64(),
+  status: __t.string(),
+  createdAt: __t.timestamp(),
+  updatedAt: __t.timestamp(),
 });
-export type GetFloodsAfter = __Infer<typeof GetFloodsAfter>;
+export type DispatchAssignment = __Infer<typeof DispatchAssignment>;
+
+export const FloodMark = __t.object("FloodMark", {
+  objectId: __t.i64(),
+  lat: __t.f64(),
+  lon: __t.f64(),
+  elevFt: __t.option(__t.f64()),
+  heightAboveGnd: __t.option(__t.f64()),
+  waterbody: __t.option(__t.string()),
+  countyName: __t.option(__t.string()),
+  quality: __t.option(__t.string()),
+  label: __t.option(__t.string()),
+  surveyTimeMicros: __t.option(__t.i64()),
+});
+export type FloodMark = __Infer<typeof FloodMark>;
+
+export const FloodMarkInput = __t.object("FloodMarkInput", {
+  objectId: __t.i64(),
+  lat: __t.f64(),
+  lon: __t.f64(),
+  elevFt: __t.option(__t.f64()),
+  heightAboveGnd: __t.option(__t.f64()),
+  waterbody: __t.option(__t.string()),
+  countyName: __t.option(__t.string()),
+  quality: __t.option(__t.string()),
+  label: __t.option(__t.string()),
+  surveyTimeMicros: __t.option(__t.i64()),
+});
+export type FloodMarkInput = __Infer<typeof FloodMarkInput>;
+
+export const RescueRequest = __t.object("RescueRequest", {
+  id: __t.u64(),
+  lat: __t.f64(),
+  lon: __t.f64(),
+  peopleCount: __t.u32(),
+  medicalUrgent: __t.bool(),
+  stranded: __t.bool(),
+  needsTransport: __t.bool(),
+  description: __t.string(),
+  status: __t.string(),
+  priorityScore: __t.i32(),
+  createdAt: __t.timestamp(),
+  updatedAt: __t.timestamp(),
+});
+export type RescueRequest = __Infer<typeof RescueRequest>;
+
+export const RescueTeam = __t.object("RescueTeam", {
+  id: __t.u64(),
+  name: __t.string(),
+  lat: __t.f64(),
+  lon: __t.f64(),
+  capacity: __t.u32(),
+  hasMedical: __t.bool(),
+  hasBoat: __t.bool(),
+  status: __t.string(),
+  updatedAt: __t.timestamp(),
+});
+export type RescueTeam = __Infer<typeof RescueTeam>;
+
+export const SimulationState = __t.object("SimulationState", {
+  id: __t.u64(),
+  regionTag: __t.string(),
+  simTimeMicros: __t.i64(),
+  speedMultiplier: __t.f64(),
+  isPlaying: __t.bool(),
+  updatedAt: __t.timestamp(),
+});
+export type SimulationState = __Infer<typeof SimulationState>;
 

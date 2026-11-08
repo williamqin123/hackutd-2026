@@ -2,8 +2,8 @@ import { Providers } from './providers';
 import './globals.css';
 
 export const metadata = {
-  title: 'SpacetimeDB Next.js App',
-  description: 'A Next.js app powered by SpacetimeDB',
+  title: 'FloodWatch',
+  description: 'Historical flood-response simulation and dispatch coordination',
 };
 
 export default function RootLayout({ children }) {

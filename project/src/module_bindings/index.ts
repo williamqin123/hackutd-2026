@@ -34,44 +34,134 @@ import {
 } from "spacetimedb";
 
 // Import all reducer arg schemas
-import CreateFloodReducer from "./create_flood_reducer";
-import DeleteFloodReducer from "./delete_flood_reducer";
-import UpdateFloodReducer from "./update_flood_reducer";
+import AdvanceSimulationReducer from "./advance_simulation_reducer";
+import ClearFloodMarksReducer from "./clear_flood_marks_reducer";
+import ConfirmDispatchReducer from "./confirm_dispatch_reducer";
+import CreateRescueRequestReducer from "./create_rescue_request_reducer";
+import CreateRescueTeamReducer from "./create_rescue_team_reducer";
+import CreateSimulationReducer from "./create_simulation_reducer";
+import RecommendDispatchReducer from "./recommend_dispatch_reducer";
+import ResetSimulationReducer from "./reset_simulation_reducer";
+import SeedFloodMarksReducer from "./seed_flood_marks_reducer";
+import SetSimulationPlayingReducer from "./set_simulation_playing_reducer";
+import SetSimulationSpeedReducer from "./set_simulation_speed_reducer";
+import SetTeamStatusReducer from "./set_team_status_reducer";
 
 // Import all procedure arg schemas
 
 // Import all table schema definitions
-import FloodDataRow from "./flood_data_table";
-import GetFloodsAfterRow from "./get_floods_after_table";
+import ActivityEventRow from "./activity_event_table";
+import DispatchAssignmentRow from "./dispatch_assignment_table";
+import FloodMarkRow from "./flood_mark_table";
+import RescueRequestRow from "./rescue_request_table";
+import RescueTeamRow from "./rescue_team_table";
+import SimulationStateRow from "./simulation_state_table";
 
 /** Type-only namespace exports for generated type groups. */
 
 /** The schema information for all tables in this module. This is defined the same was as the tables would have been defined in the server. */
 const tablesSchema = __schema({
-  floodData: __table({
-    name: 'flood_data',
+  activityEvent: __table({
+    name: 'activity_event',
     indexes: [
-      { accessor: 'surveyDateIdx', name: 'flood_data_survey_date_idx_btree', algorithm: 'btree', columns: [
-        'surveyDate',
+      { accessor: 'id', name: 'activity_event_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
       ] },
     ],
     constraints: [
+      { name: 'activity_event_id_key', constraint: 'unique', columns: ['id'] },
     ],
-  }, FloodDataRow),
-  getFloodsAfter: __table({
-    name: 'get_floods_after',
+  }, ActivityEventRow),
+  dispatchAssignment: __table({
+    name: 'dispatch_assignment',
     indexes: [
+      { accessor: 'id', name: 'dispatch_assignment_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'byRequest', name: 'dispatch_assignment_request_id_idx_btree', algorithm: 'btree', columns: [
+        'requestId',
+      ] },
+      { accessor: 'byTeam', name: 'dispatch_assignment_team_id_idx_btree', algorithm: 'btree', columns: [
+        'teamId',
+      ] },
     ],
     constraints: [
+      { name: 'dispatch_assignment_id_key', constraint: 'unique', columns: ['id'] },
     ],
-  }, GetFloodsAfterRow),
+  }, DispatchAssignmentRow),
+  floodMark: __table({
+    name: 'flood_mark',
+    indexes: [
+      { accessor: 'objectId', name: 'flood_mark_object_id_idx_btree', algorithm: 'btree', columns: [
+        'objectId',
+      ] },
+    ],
+    constraints: [
+      { name: 'flood_mark_object_id_key', constraint: 'unique', columns: ['objectId'] },
+    ],
+  }, FloodMarkRow),
+  rescueRequest: __table({
+    name: 'rescue_request',
+    indexes: [
+      { accessor: 'id', name: 'rescue_request_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'byPriority', name: 'rescue_request_priority_score_idx_btree', algorithm: 'btree', columns: [
+        'priorityScore',
+      ] },
+      { accessor: 'byStatus', name: 'rescue_request_status_idx_btree', algorithm: 'btree', columns: [
+        'status',
+      ] },
+    ],
+    constraints: [
+      { name: 'rescue_request_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, RescueRequestRow),
+  rescueTeam: __table({
+    name: 'rescue_team',
+    indexes: [
+      { accessor: 'id', name: 'rescue_team_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'byStatus', name: 'rescue_team_status_idx_btree', algorithm: 'btree', columns: [
+        'status',
+      ] },
+    ],
+    constraints: [
+      { name: 'rescue_team_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, RescueTeamRow),
+  simulationState: __table({
+    name: 'simulation_state',
+    indexes: [
+      { accessor: 'id', name: 'simulation_state_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'regionTag', name: 'simulation_state_region_tag_idx_btree', algorithm: 'btree', columns: [
+        'regionTag',
+      ] },
+    ],
+    constraints: [
+      { name: 'simulation_state_id_key', constraint: 'unique', columns: ['id'] },
+      { name: 'simulation_state_region_tag_key', constraint: 'unique', columns: ['regionTag'] },
+    ],
+  }, SimulationStateRow),
 });
 
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
 const reducersSchema = __reducers(
-  __reducerSchema("create_flood", CreateFloodReducer),
-  __reducerSchema("delete_flood", DeleteFloodReducer),
-  __reducerSchema("update_flood", UpdateFloodReducer),
+  __reducerSchema("advance_simulation", AdvanceSimulationReducer),
+  __reducerSchema("clear_flood_marks", ClearFloodMarksReducer),
+  __reducerSchema("confirm_dispatch", ConfirmDispatchReducer),
+  __reducerSchema("create_rescue_request", CreateRescueRequestReducer),
+  __reducerSchema("create_rescue_team", CreateRescueTeamReducer),
+  __reducerSchema("create_simulation", CreateSimulationReducer),
+  __reducerSchema("recommend_dispatch", RecommendDispatchReducer),
+  __reducerSchema("reset_simulation", ResetSimulationReducer),
+  __reducerSchema("seed_flood_marks", SeedFloodMarksReducer),
+  __reducerSchema("set_simulation_playing", SetSimulationPlayingReducer),
+  __reducerSchema("set_simulation_speed", SetSimulationSpeedReducer),
+  __reducerSchema("set_team_status", SetTeamStatusReducer),
 );
 
 /** The schema information for all procedures in this module. This is defined the same way as the procedures would have been defined in the server. */
@@ -84,7 +174,6 @@ const REMOTE_MODULE = {
     cliVersion: "2.14.1" as const,
   },
   tables: tablesSchema.schemaType.tables,
-  viewsWithArgs: ["get_floods_after"],
   reducers: reducersSchema.reducersType.reducers,
   ...proceduresSchema,
 } satisfies __RemoteModule<

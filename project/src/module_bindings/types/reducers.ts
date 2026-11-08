@@ -6,11 +6,29 @@
 import { type Infer as __Infer } from "spacetimedb";
 
 // Import all reducer arg schemas
-import CreateFloodReducer from "../create_flood_reducer";
-import DeleteFloodReducer from "../delete_flood_reducer";
-import UpdateFloodReducer from "../update_flood_reducer";
+import AdvanceSimulationReducer from "../advance_simulation_reducer";
+import ClearFloodMarksReducer from "../clear_flood_marks_reducer";
+import ConfirmDispatchReducer from "../confirm_dispatch_reducer";
+import CreateRescueRequestReducer from "../create_rescue_request_reducer";
+import CreateRescueTeamReducer from "../create_rescue_team_reducer";
+import CreateSimulationReducer from "../create_simulation_reducer";
+import RecommendDispatchReducer from "../recommend_dispatch_reducer";
+import ResetSimulationReducer from "../reset_simulation_reducer";
+import SeedFloodMarksReducer from "../seed_flood_marks_reducer";
+import SetSimulationPlayingReducer from "../set_simulation_playing_reducer";
+import SetSimulationSpeedReducer from "../set_simulation_speed_reducer";
+import SetTeamStatusReducer from "../set_team_status_reducer";
 
-export type CreateFloodParams = __Infer<typeof CreateFloodReducer>;
-export type DeleteFloodParams = __Infer<typeof DeleteFloodReducer>;
-export type UpdateFloodParams = __Infer<typeof UpdateFloodReducer>;
+export type AdvanceSimulationParams = __Infer<typeof AdvanceSimulationReducer>;
+export type ClearFloodMarksParams = __Infer<typeof ClearFloodMarksReducer>;
+export type ConfirmDispatchParams = __Infer<typeof ConfirmDispatchReducer>;
+export type CreateRescueRequestParams = __Infer<typeof CreateRescueRequestReducer>;
+export type CreateRescueTeamParams = __Infer<typeof CreateRescueTeamReducer>;
+export type CreateSimulationParams = __Infer<typeof CreateSimulationReducer>;
+export type RecommendDispatchParams = __Infer<typeof RecommendDispatchReducer>;
+export type ResetSimulationParams = __Infer<typeof ResetSimulationReducer>;
+export type SeedFloodMarksParams = __Infer<typeof SeedFloodMarksReducer>;
+export type SetSimulationPlayingParams = __Infer<typeof SetSimulationPlayingReducer>;
+export type SetSimulationSpeedParams = __Infer<typeof SetSimulationSpeedReducer>;
+export type SetTeamStatusParams = __Infer<typeof SetTeamStatusReducer>;
 

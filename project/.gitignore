@@ -7,3 +7,8 @@ dist
 .DS_Store
 
 spacetime.local.json
+
+# Local env files (keep secrets/local hosts out of git)
+.env
+.env.local
+.env.*.local
