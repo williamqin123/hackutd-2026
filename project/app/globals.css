@@ -72,3 +72,38 @@ input[type="range"] {
 .simulation-clock input[type="range"] {
   width: 100%;
 }
+
+.dispatch-queue {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.dispatch-queue-item {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin: 6px 0;
+}
+
+.dispatch-queue-item.selected {
+  border-color: #f59e0b;
+  background: #fffbeb;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.25);
+}
+
+.dispatch-rank {
+  font-weight: 700;
+  color: #b91c1c;
+  min-width: 2rem;
+}
+
+.dispatch-desc {
+  font-size: 13px;
+  color: #334155;
+}

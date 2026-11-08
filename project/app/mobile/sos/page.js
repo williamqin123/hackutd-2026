@@ -133,6 +133,9 @@ function getRandomHarrisCountyLocation() {
   };
 }
 
+const DEFAULT_LOC = HARRIS_COUNTY_LOCATIONS[0];
+const DEFAULT_LABEL = `${DEFAULT_LOC.address} (${DEFAULT_LOC.lat.toFixed(5)}, ${DEFAULT_LOC.lon.toFixed(5)})`;
+
 export default function MobileSosPage() {
   const { isActive, getConnection } = useSpacetimeDB();
 
@@ -140,11 +143,10 @@ export default function MobileSosPage() {
   const [sosRecords] = useTable(tables.sos);
   const [rescueRequests] = useTable(tables.rescueRequest);
 
-  // Initialize with a random location in Harris County
-  const [randomInit] = useState(() => getRandomHarrisCountyLocation());
-  const [location, setLocation] = useState(randomInit.label);
-  const [coords, setCoords] = useState({ lat: randomInit.lat, lon: randomInit.lon });
-  const [activeAreaName, setActiveAreaName] = useState(randomInit.name);
+  // Fixed SSR-safe default — randomize only after mount (avoids hydration mismatch).
+  const [location, setLocation] = useState(DEFAULT_LABEL);
+  const [coords, setCoords] = useState({ lat: DEFAULT_LOC.lat, lon: DEFAULT_LOC.lon });
+  const [activeAreaName, setActiveAreaName] = useState(DEFAULT_LOC.name);
 
   // Geolocation states
   const [geoStatus, setGeoStatus] = useState('idle'); // 'idle' | 'locating' | 'success' | 'error' | 'harris'
@@ -191,6 +193,10 @@ export default function MobileSosPage() {
     setGeoErrorMsg('');
     setGeoAccuracy(null);
   }, []);
+
+  useEffect(() => {
+    handleShuffleHarrisLocation();
+  }, [handleShuffleHarrisLocation]);
 
   // Update coords if user manually types coordinates into the input
   const handleLocationInputChange = (newVal) => {
@@ -289,7 +295,7 @@ export default function MobileSosPage() {
     });
   };
 
-  // Submit SOS: explicitly calls both createRescueRequest AND addSos
+  // Submit SOS: Gemini (or heuristic) → flags, then createRescueRequest + addSos
   const handleSubmitSos = async (e) => {
     if (e) e.preventDefault();
     setIsSubmitting(true);
@@ -299,17 +305,37 @@ export default function MobileSosPage() {
     const targetText = sosText.trim() || 'Emergency SOS distress broadcast';
     const nowTimestamp = new Date();
 
-    // Parse urgency flags from description
-    const isMedical = /medic|doctor|injur|oxygen|hospital|sick|ambulance/i.test(targetText);
-    const isStranded = /strand|trap|roof|attic|water rising|stuck|second floor/i.test(targetText) || true;
-    const isTransport = /boat|evac|transport|rescue team/i.test(targetText) || true;
-
-    // Detect people count
+    let isMedical = /medic|doctor|injur|oxygen|hospital|sick|ambulance/i.test(targetText);
+    let isStranded = /strand|trap|roof|attic|water rising|stuck|second floor/i.test(targetText);
+    let isTransport = /boat|evac|transport|rescue team/i.test(targetText);
     let peopleCount = 1;
-    const peopleMatch = targetText.match(/(\d+)\s*(?:people|persons|adults|kids|children|family members)/i);
+    const peopleMatch = targetText.match(
+      /(\d+)\s*(?:people|persons|adults|kids|children|family members)/i,
+    );
     if (peopleMatch) {
       const p = parseInt(peopleMatch[1], 10);
       if (!isNaN(p) && p >= 1 && p <= 50) peopleCount = p;
+    }
+    let flagSource = 'heuristic';
+
+    try {
+      const analyzeRes = await fetch('/api/analyze-sos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: targetText, tags: [] }),
+      });
+      if (analyzeRes.ok) {
+        const flags = await analyzeRes.json();
+        isMedical = Boolean(flags.medicalUrgent);
+        isStranded = Boolean(flags.stranded);
+        isTransport = Boolean(flags.needsTransport);
+        if (typeof flags.peopleCount === 'number' && flags.peopleCount >= 1) {
+          peopleCount = Math.min(50, Math.floor(flags.peopleCount));
+        }
+        flagSource = flags.source || 'gemini';
+      }
+    } catch (analyzeErr) {
+      console.warn('analyze-sos fallback to local heuristics', analyzeErr);
     }
 
     try {
@@ -351,6 +377,9 @@ export default function MobileSosPage() {
         lon: coords.lon,
         peopleCount,
         medicalUrgent: isMedical,
+        stranded: isStranded,
+        needsTransport: isTransport,
+        flagSource,
         timestamp: nowTimestamp.toLocaleString(),
       });
       setSubmitSuccess(true);

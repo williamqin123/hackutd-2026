@@ -20,6 +20,21 @@ const LEVEL_FILL = {
   critical: 0.22,
 };
 
+/** Victim urgency palette — separate from flood LEVEL_COLORS. */
+const SOS_URGENCY = {
+  critical: { bg: "#b91c1c", border: "#7f1d1d" }, // score >= 1000
+  high: { bg: "#ea580c", border: "#9a3412" }, // >= 500
+  medium: { bg: "#ca8a04", border: "#854d0e" }, // >= 200
+  low: { bg: "#64748b", border: "#334155" },
+};
+
+function sosUrgency(score) {
+  if (score >= 1000) return SOS_URGENCY.critical;
+  if (score >= 500) return SOS_URGENCY.high;
+  if (score >= 200) return SOS_URGENCY.medium;
+  return SOS_URGENCY.low;
+}
+
 function microsToLabel(micros) {
   if (micros === undefined || micros === null) return "—";
   const ms = Number(micros / 1000n);
@@ -38,6 +53,8 @@ export default function FloodMap({
   floodMarks = [],
   requests = [],
   teams = [],
+  assignments = [],
+  selectedRequestId = null,
 }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
@@ -253,33 +270,118 @@ export default function FloodMap({
       layers.marks.addLayer(marker);
     }
 
-    for (const req of requests) {
-      L.marker([req.lat, req.lon], { title: `SOS #${req.id}`, zIndexOffset: 500 })
-        .setIcon(
-          L.divIcon({
-            className: "waterboard-divicon",
-            html: `<div style="background:#b91c1c;color:white;border-radius:999px;padding:2px 6px;font:12px system-ui;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.4)">SOS</div>`,
-            iconSize: [36, 20],
-            iconAnchor: [18, 10],
-          }),
+    const openStatuses = new Set(["pending", "recommended", "assigned"]);
+    const rankedOpen = [...requests]
+      .filter((r) => openStatuses.has(r.status))
+      .sort((a, b) => b.priorityScore - a.priorityScore);
+    const rankById = new Map(
+      rankedOpen.map((r, i) => [r.id.toString(), i + 1]),
+    );
+
+    const teamById = new Map(teams.map((t) => [t.id.toString(), t]));
+    const requestById = new Map(requests.map((r) => [r.id.toString(), r]));
+
+    // Discrete TEAM↔SOS match lines (no live travel).
+    for (const a of assignments) {
+      if (a.status !== "recommended" && a.status !== "confirmed" && a.status !== "en_route") {
+        continue;
+      }
+      const team = teamById.get(a.teamId.toString());
+      const req = requestById.get(a.requestId.toString());
+      if (!team || !req) continue;
+      const isConfirmed = a.status === "confirmed" || a.status === "en_route";
+      L.polyline(
+        [
+          [team.lat, team.lon],
+          [req.lat, req.lon],
+        ],
+        {
+          color: isConfirmed ? "#0369a1" : "#94a3b8",
+          weight: isConfirmed ? 3 : 2,
+          opacity: isConfirmed ? 0.9 : 0.7,
+          dashArray: isConfirmed ? null : "6 6",
+        },
+      )
+        .bindTooltip(
+          `${team.name} → SOS #${req.id} · ${a.status}`,
+          { sticky: true, opacity: 0.95 },
         )
-        .bindPopup(`SOS #${req.id}<br/>${req.description}<br/>${req.status}`, {
-          autoPan: true,
-        })
         .addTo(layers.units);
     }
 
-    for (const team of teams) {
-      L.marker([team.lat, team.lon], { zIndexOffset: 400 })
+    for (const req of requests) {
+      const score = req.priorityScore ?? 0;
+      const urgency = sosUrgency(score);
+      const rank = rankById.get(req.id.toString());
+      const isSelected =
+        selectedRequestId != null &&
+        String(selectedRequestId) === String(req.id);
+      const isDone = req.status === "completed" || req.status === "cancelled";
+      const isAssigned = req.status === "assigned";
+      const opacity = isDone ? 0.4 : isAssigned ? 0.75 : 1;
+      const label = rank
+        ? `#${rank} SOS`
+        : isDone
+          ? "DONE"
+          : "SOS";
+      const border = isSelected ? "3px solid #fbbf24" : `2px solid ${urgency.border}`;
+      const flags = [
+        req.medicalUrgent ? "medical" : null,
+        req.stranded ? "stranded" : null,
+        req.needsTransport ? "transport" : null,
+        `${req.peopleCount ?? "?"} people`,
+      ]
+        .filter(Boolean)
+        .join(" · ");
+
+      L.marker([req.lat, req.lon], {
+        title: `SOS #${req.id}`,
+        zIndexOffset: isSelected ? 700 : 500 + (rank ? 50 - Math.min(rank, 49) : 0),
+        opacity,
+      })
         .setIcon(
           L.divIcon({
             className: "waterboard-divicon",
-            html: `<div style="background:#0369a1;color:white;border-radius:6px;padding:2px 6px;font:12px system-ui;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.4)">TEAM</div>`,
-            iconSize: [44, 20],
-            iconAnchor: [22, 10],
+            html: `<div style="background:${urgency.bg};color:white;border-radius:999px;padding:3px 8px;font:12px/1.2 system-ui;border:${border};box-shadow:0 1px 4px rgba(0,0,0,.4);opacity:${opacity}">${label}</div>`,
+            iconSize: [rank ? 52 : 40, 22],
+            iconAnchor: [rank ? 26 : 20, 11],
           }),
         )
-        .bindPopup(`${team.name}<br/>${team.status}`, { autoPan: true })
+        .bindPopup(
+          `<strong>SOS #${req.id}</strong> · score ${score}<br/>` +
+            `<span style="text-transform:uppercase;font-weight:700">${req.status}</span>` +
+            (rank ? ` · queue #${rank}` : "") +
+            `<br/>${flags}<br/>` +
+            `${req.description ?? ""}`,
+          { maxWidth: 280, autoPan: true },
+        )
+        .addTo(layers.units);
+    }
+
+    const redCrossIcon = L.icon({
+      iconUrl: "/redcross.png",
+      iconRetinaUrl: "/redcross.png",
+      iconSize: [28, 28],
+      iconAnchor: [14, 14],
+      popupAnchor: [0, -12],
+      className: "waterboard-redcross-icon",
+    });
+
+    for (const team of teams) {
+      const busy = team.status === "busy";
+      L.marker([team.lat, team.lon], {
+        zIndexOffset: 400,
+        opacity: busy ? 0.55 : 1,
+        title: team.name,
+      })
+        .setIcon(redCrossIcon)
+        .bindPopup(
+          `<strong>${team.name}</strong><br/>${team.status}` +
+            (team.hasMedical ? " · medical" : "") +
+            (team.hasBoat ? " · boat" : "") +
+            `<br/>capacity ${team.capacity}`,
+          { autoPan: true },
+        )
         .addTo(layers.units);
     }
   }, [
@@ -290,6 +392,8 @@ export default function FloodMap({
     floodMarks,
     requests,
     teams,
+    assignments,
+    selectedRequestId,
   ]);
 
   return (

@@ -507,6 +507,95 @@ export const advanceSimulation = spacetimedb.reducer(
   },
 );
 
+/** Clear SOS / rescue queue / assignments and free all teams. */
+function clearRescueOpsTables(ctx: any) {
+  for (const a of [...ctx.db.dispatchAssignment.iter()]) {
+    ctx.db.dispatchAssignment.id.delete(a.id);
+  }
+  for (const r of [...ctx.db.rescueRequest.iter()]) {
+    ctx.db.rescueRequest.id.delete(r.id);
+  }
+  for (const s of [...ctx.db.sos.iter()]) {
+    ctx.db.sos.id.delete(s.id);
+  }
+  for (const team of [...ctx.db.rescueTeam.iter()]) {
+    if (team.status === "available") continue;
+    ctx.db.rescueTeam.id.update({
+      ...team,
+      status: "available",
+      updatedAt: ctx.timestamp,
+    });
+  }
+}
+
+export const clearRescueOps = spacetimedb.reducer((ctx) => {
+  clearRescueOpsTables(ctx);
+  logActivity(ctx, "ops", "Cleared SOS messages, requests, and assignments");
+});
+
+const HOUSTON_TEAMS: {
+  name: string;
+  lat: number;
+  lon: number;
+  capacity: number;
+  hasMedical: boolean;
+  hasBoat: boolean;
+}[] = [
+  { name: "Houston Unit 01 · Downtown", lat: 29.7604, lon: -95.3698, capacity: 6, hasMedical: true, hasBoat: true },
+  { name: "Houston Unit 02 · Meyerland", lat: 29.6741, lon: -95.4678, capacity: 5, hasMedical: false, hasBoat: true },
+  { name: "Houston Unit 03 · Cypress", lat: 29.9691, lon: -95.6972, capacity: 4, hasMedical: true, hasBoat: false },
+  { name: "Houston Unit 04 · Greenspoint", lat: 29.9167, lon: -95.4089, capacity: 4, hasMedical: false, hasBoat: false },
+  { name: "Houston Unit 05 · Kingwood", lat: 30.0505, lon: -95.1847, capacity: 5, hasMedical: true, hasBoat: true },
+  { name: "Houston Unit 06 · Memorial", lat: 29.7628, lon: -95.5342, capacity: 6, hasMedical: true, hasBoat: false },
+  { name: "Houston Unit 07 · Heights", lat: 29.7997, lon: -95.3982, capacity: 4, hasMedical: false, hasBoat: false },
+  { name: "Houston Unit 08 · Addicks", lat: 29.7858, lon: -95.7725, capacity: 5, hasMedical: false, hasBoat: true },
+  { name: "Houston Unit 09 · Bellaire", lat: 29.7058, lon: -95.4588, capacity: 4, hasMedical: true, hasBoat: false },
+  { name: "Houston Unit 10 · Pasadena", lat: 29.6911, lon: -95.2091, capacity: 5, hasMedical: false, hasBoat: true },
+  { name: "Houston Unit 11 · Baytown", lat: 29.7355, lon: -94.9774, capacity: 4, hasMedical: false, hasBoat: true },
+  { name: "Houston Unit 12 · Humble", lat: 29.9988, lon: -95.2622, capacity: 4, hasMedical: false, hasBoat: false },
+  { name: "Houston Unit 13 · Spring Branch", lat: 29.8055, lon: -95.5133, capacity: 4, hasMedical: true, hasBoat: false },
+  { name: "Houston Unit 14 · Galleria", lat: 29.739, lon: -95.461, capacity: 5, hasMedical: true, hasBoat: false },
+  { name: "Houston Unit 15 · Hobby", lat: 29.645, lon: -95.278, capacity: 5, hasMedical: false, hasBoat: true },
+];
+
+/** Replace demo teams with 15 Houston-scattered rescue units (idempotent by count+prefix). */
+export const seedHoustonRescueTeams = spacetimedb.reducer((ctx) => {
+  const existing = [...ctx.db.rescueTeam.iter()];
+  const already =
+    existing.length === HOUSTON_TEAMS.length &&
+    existing.every((t) => t.name.startsWith("Houston Unit "));
+  if (already) return;
+
+  for (const a of [...ctx.db.dispatchAssignment.iter()]) {
+    ctx.db.dispatchAssignment.id.delete(a.id);
+  }
+  for (const r of [...ctx.db.rescueRequest.iter()]) {
+    if (r.status === "pending") continue;
+    ctx.db.rescueRequest.id.update({
+      ...r,
+      status: "pending",
+      updatedAt: ctx.timestamp,
+    });
+  }
+  for (const team of existing) {
+    ctx.db.rescueTeam.id.delete(team.id);
+  }
+  for (const tdef of HOUSTON_TEAMS) {
+    ctx.db.rescueTeam.insert({
+      id: 0n,
+      name: tdef.name,
+      lat: tdef.lat,
+      lon: tdef.lon,
+      capacity: tdef.capacity,
+      hasMedical: tdef.hasMedical,
+      hasBoat: tdef.hasBoat,
+      status: "available",
+      updatedAt: ctx.timestamp,
+    });
+  }
+  logActivity(ctx, "team", `Seeded ${HOUSTON_TEAMS.length} Houston rescue teams`);
+});
+
 export const resetSimulation = spacetimedb.reducer(
   { regionTag: t.string(), simTimeMicros: t.i64() },
   (ctx, { regionTag, simTimeMicros }) => {
@@ -521,7 +610,8 @@ export const resetSimulation = spacetimedb.reducer(
       updatedAt: ctx.timestamp,
     });
 
-    logActivity(ctx, "simulation", `Reset simulation ${regionTag}`);
+    clearRescueOpsTables(ctx);
+    logActivity(ctx, "simulation", `Reset simulation ${regionTag} (cleared SOS ops)`);
   },
 );
 
@@ -735,6 +825,48 @@ export const confirmDispatch = spacetimedb.reducer(
       ctx,
       "dispatch",
       `Confirmed dispatch of ${team.name} to SOS #${request.id}`,
+      request.id,
+      team.id,
+    );
+  },
+);
+
+/** Mark a confirmed (or en-route) assignment complete and free the team. */
+export const completeDispatch = spacetimedb.reducer(
+  { assignmentId: t.u64() },
+  (ctx, { assignmentId }) => {
+    const assignment = ctx.db.dispatchAssignment.id.find(assignmentId);
+    if (!assignment) throw new SenderError("assignment not found");
+    if (assignment.status !== "confirmed" && assignment.status !== "en_route") {
+      throw new SenderError("only confirmed or en_route assignments can be completed");
+    }
+
+    const team = ctx.db.rescueTeam.id.find(assignment.teamId);
+    const request = ctx.db.rescueRequest.id.find(assignment.requestId);
+    if (!team || !request) throw new SenderError("assignment references missing rows");
+
+    ctx.db.dispatchAssignment.id.update({
+      ...assignment,
+      status: "completed",
+      updatedAt: ctx.timestamp,
+    });
+
+    ctx.db.rescueTeam.id.update({
+      ...team,
+      status: "available",
+      updatedAt: ctx.timestamp,
+    });
+
+    ctx.db.rescueRequest.id.update({
+      ...request,
+      status: "completed",
+      updatedAt: ctx.timestamp,
+    });
+
+    logActivity(
+      ctx,
+      "dispatch",
+      `Completed rescue of SOS #${request.id} by ${team.name}`,
       request.id,
       team.id,
     );

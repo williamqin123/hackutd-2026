@@ -9,6 +9,7 @@ import { loadStormTrack, loadUsgsGauges } from "../lib/hazard";
 import { REGION, SIM_START_MICROS, microsLabel } from "../lib/sim-clock";
 import SimulationClock from "../components/SimulationClock.jsx";
 import ThreatSnapshot from "../components/ThreatSnapshot.jsx";
+import DispatchBoard from "../components/DispatchBoard.jsx";
 
 const FloodMap = dynamic(() => import("../components/FloodMap.jsx"), {
   ssr: false,
@@ -38,7 +39,9 @@ export default function Home() {
   const [stormCsv, setStormCsv] = useState([]);
   const [usgsPayload, setUsgsPayload] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [selectedRequestId, setSelectedRequestId] = useState(null);
   const autoSeededRef = useRef(false);
+  const teamsSeededRef = useRef(false);
 
   const ready =
     simReady &&
@@ -73,14 +76,6 @@ export default function Home() {
       .then(setUsgsPayload)
       .catch((err) => setError(`load USGS gauges: ${String(err)}`));
   }, []);
-
-  const pendingSorted = useMemo(
-    () =>
-      [...requests]
-        .filter((r) => r.status === "pending" || r.status === "recommended")
-        .sort((a, b) => b.priorityScore - a.priorityScore),
-    [requests],
-  );
 
   const recentEvents = useMemo(
     () =>
@@ -149,6 +144,23 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [needsSeed, floodCsv.length, stormCsv.length, usgsPayload, busy]);
 
+  useEffect(() => {
+    if (!isActive || !ready || busy || teamsSeededRef.current) return;
+    const houstonCount = teams.filter((t) =>
+      String(t.name).startsWith("Houston Unit "),
+    ).length;
+    if (houstonCount >= 15) {
+      teamsSeededRef.current = true;
+      return;
+    }
+    teamsSeededRef.current = true;
+    void run("seed Houston teams", (c) => c.reducers.seedHoustonRescueTeams()).catch(
+      () => {
+        teamsSeededRef.current = false;
+      },
+    );
+  }, [isActive, ready, busy, teams, run]);
+
   return (
     <main>
       <h1>The WaterBoard</h1>
@@ -183,11 +195,24 @@ export default function Home() {
         floodMarks={floodMarks}
         requests={requests}
         teams={teams}
+        assignments={assignments}
+        selectedRequestId={selectedRequestId}
       />
 
       <SimulationClock sim={sim} isActive={isActive} busy={busy} run={run} />
 
       <ThreatSnapshot threatRegions={threatRegions} siteThreats={siteThreats} />
+
+      <DispatchBoard
+        requests={requests}
+        teams={teams}
+        assignments={assignments}
+        selectedRequestId={selectedRequestId}
+        onSelectRequest={setSelectedRequestId}
+        isActive={isActive}
+        busy={busy}
+        run={run}
+      />
 
       <section>
         <h2>Historical data</h2>
@@ -214,65 +239,6 @@ export default function Home() {
             Recompute threats now
           </button>
         </div>
-      </section>
-
-      <section>
-        <h2>Dispatch demo</h2>
-        <div className="button-row">
-          <button
-            disabled={!isActive}
-            onClick={() =>
-              void run("create SOS", (c) =>
-                c.reducers.createRescueRequest({
-                  lat: 29.75,
-                  lon: -95.37,
-                  peopleCount: 3,
-                  medicalUrgent: true,
-                  stranded: true,
-                  needsTransport: true,
-                  description: "Family stranded on roof, medical need",
-                }),
-              )
-            }
-          >
-            Create urgent SOS
-          </button>
-          <button
-            disabled={!isActive}
-            onClick={() => void run("recommend", (c) => c.reducers.recommendDispatch())}
-          >
-            Recommend dispatch
-          </button>
-          <button
-            disabled={!isActive || assignments.every((a) => a.status !== "recommended")}
-            onClick={() => {
-              const next = assignments.find((a) => a.status === "recommended");
-              if (!next) return;
-              void run("confirm", (c) =>
-                c.reducers.confirmDispatch({ assignmentId: next.id }),
-              );
-            }}
-          >
-            Confirm first recommendation
-          </button>
-        </div>
-        <h3>Priority queue</h3>
-        <ul>
-          {pendingSorted.map((req) => (
-            <li key={String(req.id)}>
-              #{String(req.id)} score={req.priorityScore} · {req.status} · {req.description}
-            </li>
-          ))}
-          {pendingSorted.length === 0 && <li>No open requests</li>}
-        </ul>
-        <h3>Teams</h3>
-        <ul>
-          {teams.map((team) => (
-            <li key={String(team.id)}>
-              {team.name} · {team.status}
-            </li>
-          ))}
-        </ul>
       </section>
 
       <section>
