@@ -184,6 +184,10 @@ Restart `npm run dev` after changing env files.
 For local SpacetimeDB, set both variables to the local values in `.env.example`.
 Production changes to these public variables require a rebuild and redeploy.
 
+For Railway public networking, cross-origin WebSocket requirements, and the
+`npm run check:websocket` handshake diagnostic, see
+[WebSocket deployment](./WEBSOCKET_DEPLOYMENT.md).
+
 ---
 
 ## 6. Styling

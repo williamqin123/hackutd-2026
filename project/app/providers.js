@@ -23,9 +23,25 @@ const DB_NAME =
   process.env.NEXT_PUBLIC_SPACETIMEDB_DB_NAME?.trim() || 'hackutd-2026-t3uux';
 const TOKEN_KEY = `${HOST}/${DB_NAME}/auth_token`;
 
+function readSavedToken() {
+  try {
+    return typeof window !== 'undefined'
+      ? window.localStorage.getItem(TOKEN_KEY) || undefined
+      : undefined;
+  } catch {
+    // Storage can be unavailable in restricted browser contexts. Connecting
+    // without a saved token still lets SpacetimeDB issue a session identity.
+    return undefined;
+  }
+}
+
 const onConnect = (_conn, identity, token) => {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem(TOKEN_KEY, token);
+  try {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(TOKEN_KEY, token);
+    }
+  } catch {
+    // Persistence is optional; a storage error must not interrupt onConnect.
   }
   console.log(
     'Connected to SpacetimeDB with identity:',
@@ -47,11 +63,10 @@ export function Providers({ children }) {
       DbConnection.builder()
         .withUri(HOST)
         .withDatabaseName(DB_NAME)
-        .withToken(
-          typeof window !== 'undefined'
-            ? localStorage.getItem(TOKEN_KEY) || undefined
-            : undefined
-        )
+        // Avoid WebKit DecompressionStream failures on incoming messages.
+        // This changes message compression only; the connection still uses TLS.
+        .withCompression('none')
+        .withToken(readSavedToken())
         .withAutomaticReconnect()
         .onConnect(onConnect)
         .onDisconnect(onDisconnect)
