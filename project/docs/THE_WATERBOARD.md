@@ -13,9 +13,9 @@ HackUTD 2026 project docs for teammates and judges.
 ```text
 ┌─────────────────────────────────────────────────────────────────────────┐
 │ SOURCE DATA (seeded once)                                               │
-│  • harvey_..._flood_marks.csv  →  flood_mark                            │
-│  • hurricane_harvey_2017_track.csv → storm_observation                  │
-│  • USGS Water Data API (cached JSON) → gauge_station + gauge_reading    │
+│  • harvey_flood_marks.json     →  flood_mark                            │
+│  • harvey_storm_track.json     →  storm_observation                     │
+│  • usgs_harvey_gauges.json     →  gauge_station + gauge_reading         │
 └───────────────────────────────┬─────────────────────────────────────────┘
                                 │ seed reducers (idempotent)
                                 ▼
@@ -158,8 +158,8 @@ Defined in `project/spacetimedb/src/index.ts`, registered in one `schema({ ... }
 | Table | Purpose | Data origin | Static or live? |
 | --- | --- | --- | --- |
 | **`simulation_state`** | Disaster clock for the Houston Harvey scenario (`regionTag`, `simTimeMicros`, play flag, speed) | **App / mock seed** on module `init` (`houston-harvey` starting Aug 25, 2017) | **Live** — changed by play/seek/advance |
-| **`flood_mark`** | Historical USGS high-water mark sites (slim fields for map + scoring) | **CSV:** `public/harvey_2017_houston_harris_flood_marks.csv` via `seedFloodMarks` | **Static** after seed (real observations) |
-| **`storm_observation`** | Harvey track points (time, lat/lon, wind, SSHS) | **CSV:** `public/hurricane_harvey_2017_track.csv` (also `harvey_storm_track.json`) via `seedStormTrack` | **Static** after seed (real track) |
+| **`flood_mark`** | Historical USGS high-water mark sites (slim fields for map + scoring) | **JSON extract:** `public/harvey_flood_marks.json` (from original USGS HWM CSV) via `seedFloodMarks` | **Static** after seed (real observations) |
+| **`storm_observation`** | Harvey track points (time, lat/lon, wind, SSHS) | **JSON extract:** `public/harvey_storm_track.json` (from original IBTrACS/best-track CSV) via `seedStormTrack` | **Static** after seed (real track) |
 | **`gauge_station`** | USGS monitoring locations + demo flood-stage thresholds | **USGS Water Data API** metadata, packaged in `public/usgs_harvey_gauges.json` via `seedGaugeStations` | Mostly **static**; stage thresholds are demo constants |
 | **`gauge_reading`** | Hourly gage height (param `00065`) during Harvey | **USGS API** `.../collections/continuous/items`, cached in `usgs_harvey_gauges.json` via `seedGaugeReadings` | **Static** time series after seed (real historical) |
 | **`site_threat`** | Per–flood-mark threat score/level at current sim time | **Computed** by `recomputeThreats` from storm + gages + marks | **Live / modelled** |
@@ -173,12 +173,13 @@ Defined in `project/spacetimedb/src/index.ts`, registered in one `schema({ ... }
 
 | File | Used for |
 | --- | --- |
-| `public/harvey_2017_houston_harris_flood_marks.csv` | High-water marks → `flood_mark` |
-| `public/hurricane_harvey_2017_track.csv` | Raw storm track CSV |
-| `public/harvey_storm_track.json` | Slim track for client seeding → `storm_observation` |
+| `public/harvey_flood_marks.json` | Slim high-water marks → `flood_mark` |
+| `public/harvey_storm_track.json` | Slim storm track → `storm_observation` |
 | `public/usgs_harvey_gauges.json` | Stations + hourly readings → `gauge_station`, `gauge_reading` |
-| `lib/floods.js` | Parses flood-mark CSV in the browser |
+| `lib/floods.js` | Loads flood-mark JSON in the browser |
 | `lib/hazard.js` | Loads storm + USGS JSON for seeding |
+
+Raw CSVs are **not** kept in the repo; only these slim JSON extracts are.
 
 **USGS endpoint used for the extract:**  
 `https://api.waterdata.usgs.gov/ogcapi/v1/collections/continuous/items`  

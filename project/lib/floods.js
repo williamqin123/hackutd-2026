@@ -1,77 +1,46 @@
-import Papa from "papaparse";
+/**
+ * Load historical Harvey high-water marks prepared for The WaterBoard.
+ * Source extract lives at public/harvey_flood_marks.json (converted from the
+ * original USGS high-water-mark CSV; no CSV is shipped in the repo).
+ */
 
-// Served from project/public. This is the real Harvey high-water-mark file.
-const CSV_URL = "/harvey_2017_houston_harris_flood_marks.csv";
-
-function toNumber(value) {
-  const text = (value ?? "").toString().trim();
-  if (!text) return undefined;
-  const n = Number(text);
-  return Number.isFinite(n) ? n : undefined;
-}
-
-function toText(value) {
-  const text = (value ?? "").toString().trim();
-  return text ? text : undefined;
-}
-
-function toBigInt(value) {
-  const text = (value ?? "").toString().trim();
-  if (!text) return undefined;
-  try {
-    return BigInt(text);
-  } catch {
-    return undefined;
-  }
-}
+const JSON_URL = "/harvey_flood_marks.json";
 
 /**
- * Fetch and parse the historical flood-mark CSV into a slim list of objects
- * that match the `seedFloodMarks` reducer's FloodMarkInput shape.
- * Rows missing an id or coordinates are skipped; duplicate ids are de-duped.
+ * Returns objects shaped for the `seedFloodMarks` reducer.
  */
 export async function loadFloodMarks() {
-  const response = await fetch(CSV_URL);
+  const response = await fetch(JSON_URL);
   if (!response.ok) {
-    throw new Error(`Failed to load flood CSV: ${response.status}`);
+    throw new Error(`Failed to load flood marks: ${response.status}`);
   }
 
-  const text = await response.text();
-  const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
-  if (parsed.errors.length > 0) {
-    throw new Error(parsed.errors[0].message);
-  }
-
+  const data = await response.json();
   const marks = [];
   const seen = new Set();
 
-  for (const row of parsed.data) {
-    const objectId = toBigInt(row.OBJECTID);
-    const lat = toNumber(row.latitude_dd);
-    const lon = toNumber(row.longitude_dd);
-    if (objectId === undefined || lat === undefined || lon === undefined) {
-      continue;
-    }
-
+  for (const row of data.marks ?? []) {
+    if (row.objectId == null || row.lat == null || row.lon == null) continue;
+    const objectId = BigInt(row.objectId);
     const key = objectId.toString();
     if (seen.has(key)) continue;
     seen.add(key);
 
-    // The SurveyDate column holds milliseconds since the Unix epoch.
-    const ms = toBigInt(row.SurveyDate);
-    const surveyTimeMicros = ms === undefined ? undefined : ms * 1000n;
-
     marks.push({
       objectId,
-      lat,
-      lon,
-      elevFt: toNumber(row.elev_ft),
-      heightAboveGnd: toNumber(row.height_above_gnd),
-      waterbody: toText(row.waterbody),
-      countyName: toText(row.countyName),
-      quality: toText(row.hwmQualityName),
-      label: toText(row.hwm_label) ?? toText(row.siteDescription),
-      surveyTimeMicros,
+      lat: Number(row.lat),
+      lon: Number(row.lon),
+      elevFt: row.elevFt == null ? undefined : Number(row.elevFt),
+      heightAboveGnd:
+        row.heightAboveGnd == null ? undefined : Number(row.heightAboveGnd),
+      waterbody: row.waterbody ?? undefined,
+      countyName: row.countyName ?? undefined,
+      quality: row.quality ?? undefined,
+      label: row.label ?? undefined,
+      surveyTimeMicros:
+        row.surveyTimeMicros == null
+          ? undefined
+          : BigInt(row.surveyTimeMicros),
     });
   }
 

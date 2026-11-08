@@ -387,7 +387,7 @@ export default function Home() {
             disabled={!isActive || busy || floodCsv.length === 0 || !usgsPayload}
             onClick={() => void seedAllHistorical().catch(() => {})}
           >
-            {busy ? "Seeding..." : "Seed all historical (CSV + USGS)"}
+            {busy ? "Seeding..." : "Seed all historical (JSON + USGS)"}
           </button>
           <button
             disabled={!isActive || busy}
