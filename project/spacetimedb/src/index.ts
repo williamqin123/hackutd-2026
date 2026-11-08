@@ -142,6 +142,136 @@ const FloodMarkInput = t.object("FloodMarkInput", {
   surveyTimeMicros: t.option(t.i64()),
 });
 
+/** Hurricane track observations (IBTrACS / best-track CSV). */
+const stormObservation = table(
+  {
+    name: "storm_observation",
+    public: true,
+    indexes: [
+      { accessor: "byTime", algorithm: "btree", columns: ["timeMicros"] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    timeMicros: t.i64(),
+    lat: t.f64(),
+    lon: t.f64(),
+    windKt: t.f64(),
+    sshs: t.i32(),
+  },
+);
+
+const StormObservationInput = t.object("StormObservationInput", {
+  timeMicros: t.i64(),
+  lat: t.f64(),
+  lon: t.f64(),
+  windKt: t.f64(),
+  sshs: t.i32(),
+});
+
+/** USGS monitoring locations used for river/bayou gage height. */
+const gaugeStation = table(
+  {
+    name: "gauge_station",
+    public: true,
+  },
+  {
+    stationId: t.string().primaryKey(),
+    name: t.string(),
+    lat: t.f64(),
+    lon: t.f64(),
+    // Approximate demo flood-stage threshold (ft). Not an official NWS stage.
+    floodStageFt: t.f64(),
+  },
+);
+
+const GaugeStationInput = t.object("GaugeStationInput", {
+  stationId: t.string(),
+  name: t.string(),
+  lat: t.f64(),
+  lon: t.f64(),
+  floodStageFt: t.f64(),
+});
+
+/** Hourly USGS gage-height readings (parameter 00065) during Harvey. */
+const gaugeReading = table(
+  {
+    name: "gauge_reading",
+    public: true,
+    indexes: [
+      {
+        accessor: "byStationTime",
+        algorithm: "btree",
+        columns: ["stationId", "timeMicros"],
+      },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    stationId: t.string(),
+    timeMicros: t.i64(),
+    gageHeightFt: t.f64(),
+  },
+);
+
+const GaugeReadingInput = t.object("GaugeReadingInput", {
+  stationId: t.string(),
+  timeMicros: t.i64(),
+  gageHeightFt: t.f64(),
+});
+
+/**
+ * Live per-site threat scores recomputed from storm + gauge + historical marks
+ * at the current simulation time. Synthetic/modelled scores — not forecasts.
+ */
+const siteThreat = table(
+  {
+    name: "site_threat",
+    public: true,
+    indexes: [
+      { accessor: "byLevel", algorithm: "btree", columns: ["level"] },
+      { accessor: "byScore", algorithm: "btree", columns: ["threatScore"] },
+    ],
+  },
+  {
+    objectId: t.i64().primaryKey(),
+    lat: t.f64(),
+    lon: t.f64(),
+    threatScore: t.f64(),
+    // none | watch | advisory | warning | critical
+    level: t.string(),
+    stormComponent: t.f64(),
+    gaugeComponent: t.f64(),
+    historicalComponent: t.f64(),
+    nearestStationId: t.option(t.string()),
+    updatedSimMicros: t.i64(),
+  },
+);
+
+/**
+ * Visual threat regions centered on gauges. Radius grows as stage rises.
+ * These are modelled demonstration zones, not official inundation maps.
+ */
+const threatRegion = table(
+  {
+    name: "threat_region",
+    public: true,
+  },
+  {
+    stationId: t.string().primaryKey(),
+    name: t.string(),
+    lat: t.f64(),
+    lon: t.f64(),
+    radiusKm: t.f64(),
+    gageHeightFt: t.f64(),
+    floodStageFt: t.f64(),
+    stageRatio: t.f64(),
+    // none | watch | advisory | warning | critical
+    level: t.string(),
+    updatedSimMicros: t.i64(),
+  },
+);
+
 const spacetimedb = schema({
   simulationState,
   rescueRequest,
@@ -149,6 +279,11 @@ const spacetimedb = schema({
   dispatchAssignment,
   activityEvent,
   floodMark,
+  stormObservation,
+  gaugeStation,
+  gaugeReading,
+  siteThreat,
+  threatRegion,
 });
 
 export default spacetimedb;
@@ -573,6 +708,243 @@ export const confirmDispatch = spacetimedb.reducer(
       `Confirmed dispatch of ${team.name} to SOS #${request.id}`,
       request.id,
       team.id,
+    );
+  },
+);
+
+export const seedStormTrack = spacetimedb.reducer(
+  { points: t.array(StormObservationInput) },
+  (ctx, { points }) => {
+    if ([...ctx.db.stormObservation.iter()].length > 0) {
+      // Already seeded — keep idempotent for demos.
+      return;
+    }
+    for (const p of points) {
+      ctx.db.stormObservation.insert({
+        id: 0n,
+        timeMicros: p.timeMicros,
+        lat: p.lat,
+        lon: p.lon,
+        windKt: p.windKt,
+        sshs: p.sshs,
+      });
+    }
+    logActivity(ctx, "storm", `Seeded ${points.length} storm track points`);
+  },
+);
+
+export const seedGaugeStations = spacetimedb.reducer(
+  { stations: t.array(GaugeStationInput) },
+  (ctx, { stations }) => {
+    let inserted = 0;
+    let updated = 0;
+    for (const s of stations) {
+      const existing = ctx.db.gaugeStation.stationId.find(s.stationId);
+      if (existing) {
+        ctx.db.gaugeStation.stationId.update({
+          ...existing,
+          name: s.name,
+          lat: s.lat,
+          lon: s.lon,
+          floodStageFt: s.floodStageFt,
+        });
+        updated++;
+        continue;
+      }
+      ctx.db.gaugeStation.insert({
+        stationId: s.stationId,
+        name: s.name,
+        lat: s.lat,
+        lon: s.lon,
+        floodStageFt: s.floodStageFt,
+      });
+      inserted++;
+    }
+    if (inserted > 0 || updated > 0) {
+      logActivity(
+        ctx,
+        "gauge",
+        `Gauge stations inserted=${inserted} updated=${updated}`,
+      );
+    }
+  },
+);
+
+export const seedGaugeReadings = spacetimedb.reducer(
+  { readings: t.array(GaugeReadingInput) },
+  (ctx, { readings }) => {
+    if ([...ctx.db.gaugeReading.iter()].length > 0) return;
+    for (const r of readings) {
+      ctx.db.gaugeReading.insert({
+        id: 0n,
+        stationId: r.stationId,
+        timeMicros: r.timeMicros,
+        gageHeightFt: r.gageHeightFt,
+      });
+    }
+    logActivity(ctx, "gauge", `Seeded ${readings.length} USGS gage readings`);
+  },
+);
+
+function levelFromScore(score: number): string {
+  if (score >= 75) return "critical";
+  if (score >= 55) return "warning";
+  if (score >= 35) return "advisory";
+  if (score >= 15) return "watch";
+  return "none";
+}
+
+/** Gauge-region levels keyed off stage ratio (1.0 = flood stage). */
+function levelFromStageRatio(ratio: number): string {
+  if (ratio >= 1.05) return "critical";
+  if (ratio >= 0.9) return "warning";
+  if (ratio >= 0.75) return "advisory";
+  if (ratio >= 0.5) return "watch";
+  return "none";
+}
+
+function clamp01(x: number): number {
+  if (x < 0) return 0;
+  if (x > 1) return 1;
+  return x;
+}
+
+/**
+ * Recompute live flooding threat from:
+ *  1) hurricane proximity + wind (storm CSV)
+ *  2) USGS gage height vs flood-stage (Water Data API)
+ *  3) historical high-water mark confirmation (flood CSV)
+ *
+ * Transparent weighted score for demo / State Farm prioritization context.
+ * Not a hydrologic forecast.
+ */
+export const recomputeThreats = spacetimedb.reducer(
+  { regionTag: t.string() },
+  (ctx, { regionTag }) => {
+    const sim = ctx.db.simulationState.regionTag.find(regionTag);
+    if (!sim) throw new SenderError(`Simulation not found: ${regionTag}`);
+    const T = sim.simTimeMicros;
+
+    const track = [...ctx.db.stormObservation.iter()].sort((a, b) =>
+      a.timeMicros < b.timeMicros ? -1 : a.timeMicros > b.timeMicros ? 1 : 0,
+    );
+    let storm = track.length ? track[0] : undefined;
+    for (const p of track) {
+      if (p.timeMicros <= T) storm = p;
+      else break;
+    }
+
+    const stations = [...ctx.db.gaugeStation.iter()];
+    const readingsByStation = new Map<string, { timeMicros: bigint; gageHeightFt: number }[]>();
+    for (const r of ctx.db.gaugeReading.iter()) {
+      const list = readingsByStation.get(r.stationId) ?? [];
+      list.push({ timeMicros: r.timeMicros, gageHeightFt: r.gageHeightFt });
+      readingsByStation.set(r.stationId, list);
+    }
+    for (const list of readingsByStation.values()) {
+      list.sort((a, b) =>
+        a.timeMicros < b.timeMicros ? -1 : a.timeMicros > b.timeMicros ? 1 : 0,
+      );
+    }
+
+    function readingAt(stationId: string): number | undefined {
+      const list = readingsByStation.get(stationId);
+      if (!list || list.length === 0) return undefined;
+      let best: number | undefined;
+      for (const r of list) {
+        if (r.timeMicros <= T) best = r.gageHeightFt;
+        else break;
+      }
+      return best;
+    }
+
+    // --- Gauge-centered threat regions (visual "live flood" zones) ---
+    for (const station of stations) {
+      const height = readingAt(station.stationId) ?? 0;
+      const ratio = station.floodStageFt > 0 ? height / station.floodStageFt : 0;
+      const over = Math.max(0, ratio - 0.6);
+      const radiusKm = 2 + over * 18;
+      const level = levelFromStageRatio(ratio);
+
+      const existing = ctx.db.threatRegion.stationId.find(station.stationId);
+      const row = {
+        stationId: station.stationId,
+        name: station.name,
+        lat: station.lat,
+        lon: station.lon,
+        radiusKm,
+        gageHeightFt: height,
+        floodStageFt: station.floodStageFt,
+        stageRatio: ratio,
+        level,
+        updatedSimMicros: T,
+      };
+      if (existing) ctx.db.threatRegion.stationId.update(row);
+      else ctx.db.threatRegion.insert(row);
+    }
+
+    // --- Per flood-mark threat scores ---
+    const marks = [...ctx.db.floodMark.iter()];
+    for (const mark of marks) {
+      let stormComponent = 0;
+      if (storm) {
+        const dist = haversineKm(mark.lat, mark.lon, storm.lat, storm.lon);
+        const windNorm = clamp01(storm.windKt / 130);
+        const prox = Math.exp(-dist / 90);
+        stormComponent = 100 * windNorm * prox;
+      }
+
+      let gaugeComponent = 0;
+      let nearestStationId: string | undefined;
+      let nearestDist = Number.POSITIVE_INFINITY;
+      for (const station of stations) {
+        const dist = haversineKm(mark.lat, mark.lon, station.lat, station.lon);
+        const height = readingAt(station.stationId);
+        if (height === undefined) continue;
+        const ratio = clamp01(height / station.floodStageFt);
+        const prox = Math.exp(-dist / 25);
+        const contrib = 100 * ratio * prox;
+        if (contrib > gaugeComponent) {
+          gaugeComponent = contrib;
+          nearestStationId = station.stationId;
+          nearestDist = dist;
+        } else if (dist < nearestDist) {
+          nearestDist = dist;
+          nearestStationId = station.stationId;
+        }
+      }
+
+      let historicalComponent = 0;
+      if (mark.surveyTimeMicros !== undefined && mark.surveyTimeMicros <= T) {
+        const hag = mark.heightAboveGnd ?? 0;
+        historicalComponent = 20 + clamp01(hag / 8) * 20;
+      }
+
+      const threatScore =
+        0.4 * stormComponent + 0.45 * gaugeComponent + 0.15 * historicalComponent;
+      const level = levelFromScore(threatScore);
+
+      const existing = ctx.db.siteThreat.objectId.find(mark.objectId);
+      const row = {
+        objectId: mark.objectId,
+        lat: mark.lat,
+        lon: mark.lon,
+        threatScore,
+        level,
+        stormComponent,
+        gaugeComponent,
+        historicalComponent,
+        nearestStationId,
+        updatedSimMicros: T,
+      };
+      if (existing) ctx.db.siteThreat.objectId.update(row);
+      else ctx.db.siteThreat.insert(row);
+    }
+
+    logActivity(
+      ctx,
+      "threat",
+      `Recomputed threats at sim micros ${T} (${marks.length} sites, ${stations.length} regions)`,
     );
   },
 );

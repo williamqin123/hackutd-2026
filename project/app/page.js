@@ -1,9 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSpacetimeDB, useTable } from "spacetimedb/react";
 import { tables } from "../src/module_bindings";
 import { loadFloodMarks } from "../lib/floods";
+import { loadStormTrack, loadUsgsGauges } from "../lib/hazard";
+import FloodMap from "./FloodMap";
+
+const REGION = "houston-harvey";
+const HOUR_MICROS = 3_600_000_000n;
+
+function microsLabel(micros) {
+  if (micros === undefined || micros === null) return "—";
+  return new Date(Number(micros / 1000n)).toISOString().replace("T", " ").slice(0, 16) + "Z";
+}
 
 export default function Home() {
   const { isActive, getConnection } = useSpacetimeDB();
@@ -15,18 +25,44 @@ export default function Home() {
   const [assignments, assignReady] = useTable(tables.dispatchAssignment);
   const [events, eventsReady] = useTable(tables.activityEvent);
   const [floodMarks, floodReady] = useTable(tables.floodMark);
-  const [error, setError] = useState(null);
+  const [stormPoints, stormReady] = useTable(tables.stormObservation);
+  const [gaugeStations, gaugeStationReady] = useTable(tables.gaugeStation);
+  const [gaugeReadings, gaugeReadingReady] = useTable(tables.gaugeReading);
+  const [siteThreats, threatReady] = useTable(tables.siteThreat);
+  const [threatRegions, regionReady] = useTable(tables.threatRegion);
 
+  const [error, setError] = useState(null);
   const [floodCsv, setFloodCsv] = useState([]);
-  const [seeding, setSeeding] = useState(false);
+  const [stormCsv, setStormCsv] = useState([]);
+  const [usgsPayload, setUsgsPayload] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const playingRef = useRef(false);
 
   const ready =
-    simReady && reqReady && teamsReady && assignReady && eventsReady && floodReady;
+    simReady &&
+    reqReady &&
+    teamsReady &&
+    assignReady &&
+    eventsReady &&
+    floodReady &&
+    stormReady &&
+    gaugeStationReady &&
+    gaugeReadingReady &&
+    threatReady &&
+    regionReady;
+
+  const sim = simulations.find((s) => s.regionTag === REGION) ?? simulations[0];
 
   useEffect(() => {
     loadFloodMarks()
       .then(setFloodCsv)
       .catch((err) => setError(`load flood CSV: ${String(err)}`));
+    loadStormTrack()
+      .then(setStormCsv)
+      .catch((err) => setError(`load storm track: ${String(err)}`));
+    loadUsgsGauges()
+      .then(setUsgsPayload)
+      .catch((err) => setError(`load USGS gauges: ${String(err)}`));
   }, []);
 
   const pendingSorted = useMemo(
@@ -36,6 +72,12 @@ export default function Home() {
         .sort((a, b) => b.priorityScore - a.priorityScore),
     [requests],
   );
+
+  const threatSummary = useMemo(() => {
+    const counts = { none: 0, watch: 0, advisory: 0, warning: 0, critical: 0 };
+    for (const t of siteThreats) counts[t.level] = (counts[t.level] ?? 0) + 1;
+    return counts;
+  }, [siteThreats]);
 
   const recentEvents = useMemo(
     () =>
@@ -48,10 +90,6 @@ export default function Home() {
     [events],
   );
 
-  useEffect(() => {
-    setError(null);
-  }, [isActive]);
-
   async function run(label, fn) {
     setError(null);
     try {
@@ -59,59 +97,181 @@ export default function Home() {
       await fn(conn);
     } catch (err) {
       setError(`${label}: ${err instanceof Error ? err.message : String(err)}`);
+      throw err;
     }
   }
+
+  async function seedAllHistorical() {
+    setBusy(true);
+    try {
+      await run("seed flood marks", (c) =>
+        c.reducers.seedFloodMarks({ marks: floodCsv }),
+      );
+      await run("seed storm track", (c) =>
+        c.reducers.seedStormTrack({ points: stormCsv }),
+      );
+      if (usgsPayload) {
+        await run("seed gauge stations", (c) =>
+          c.reducers.seedGaugeStations({ stations: usgsPayload.stations }),
+        );
+        await run("seed gauge readings", (c) =>
+          c.reducers.seedGaugeReadings({ readings: usgsPayload.readings }),
+        );
+      }
+      await run("recompute threats", (c) =>
+        c.reducers.recomputeThreats({ regionTag: REGION }),
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function tickHour() {
+    await run("advance 1h", (c) =>
+      c.reducers.advanceSimulation({
+        regionTag: REGION,
+        deltaMicros: HOUR_MICROS,
+      }),
+    );
+    await run("recompute threats", (c) =>
+      c.reducers.recomputeThreats({ regionTag: REGION }),
+    );
+  }
+
+  // Auto-play: when simulation isPlaying, advance one sim-hour + recompute threats.
+  useEffect(() => {
+    playingRef.current = Boolean(sim?.isPlaying);
+  }, [sim?.isPlaying]);
+
+  useEffect(() => {
+    if (!sim?.isPlaying || !isActive || !conn) return;
+
+    let cancelled = false;
+    const handle = setInterval(() => {
+      if (cancelled || !playingRef.current || busy) return;
+      void tickHour().catch(() => {
+        // Errors surface via setError inside run(); pause on failure.
+        void run("pause", (c) =>
+          c.reducers.setSimulationPlaying({ regionTag: REGION, isPlaying: false }),
+        );
+      });
+    }, 1200);
+
+    return () => {
+      cancelled = true;
+      clearInterval(handle);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sim?.isPlaying, isActive, conn, busy]);
 
   return (
     <main
       style={{
-        maxWidth: 880,
+        maxWidth: 1100,
         margin: "0 auto",
-        padding: "2rem",
+        padding: "1.5rem",
         fontFamily: "system-ui, sans-serif",
         lineHeight: 1.4,
       }}
     >
-      <h1>FloodWatch</h1>
-      <p>
-        Minimal Spacetime backend: simulation clock, SOS requests, teams, and
-        dispatch recommendations.
+      <h1 style={{ marginBottom: 4 }}>FloodWatch</h1>
+      <p style={{ marginTop: 0, color: "#475569" }}>
+        Historical Harvey replay · live threat regions from storm track + USGS
+        gages + high-water marks. Modelled scores for demo — not official
+        forecasts.
       </p>
 
       <p>
         Connection: <strong>{isActive ? "connected" : "disconnected"}</strong>
         {" · "}
         Data: <strong>{ready ? "ready" : "loading"}</strong>
+        {" · "}
+        Sim: <strong>{sim ? microsLabel(sim.simTimeMicros) : "—"}</strong>
+        {sim?.isPlaying ? " · LIVE" : " · paused"}
       </p>
 
-      <section style={{ marginTop: 24 }}>
-        <h2>Simulation</h2>
-        {simulations.map((sim) => (
-          <p key={String(sim.id)}>
-            {sim.regionTag}: {sim.isPlaying ? "playing" : "paused"} · speed{" "}
-            {sim.speedMultiplier}x · simTimeMicros={String(sim.simTimeMicros)}
-          </p>
-        ))}
+      <FloodMap
+        simTimeMicros={sim?.simTimeMicros}
+        stormPoints={stormPoints}
+        threatRegions={threatRegions}
+        siteThreats={siteThreats}
+        floodMarks={floodMarks}
+        requests={requests}
+        teams={teams}
+      />
+
+      <section style={{ marginTop: 20 }}>
+        <h2>Threat snapshot</h2>
+        <p>
+          Sites — none {threatSummary.none ?? 0}, watch {threatSummary.watch ?? 0},
+          advisory {threatSummary.advisory ?? 0}, warning {threatSummary.warning ?? 0},
+          critical {threatSummary.critical ?? 0}
+        </p>
+        <ul>
+          {threatRegions.map((r) => (
+            <li key={r.stationId}>
+              <strong>{r.name}</strong>: {r.gageHeightFt.toFixed(1)} ft / stage{" "}
+              {r.floodStageFt.toFixed(0)} ({(r.stageRatio * 100).toFixed(0)}%) ·{" "}
+              {r.level} · radius {r.radiusKm.toFixed(1)} km
+            </li>
+          ))}
+          {threatRegions.length === 0 && (
+            <li>No gauge regions yet — seed historical data first.</li>
+          )}
+        </ul>
+      </section>
+
+      <section style={{ marginTop: 20 }}>
+        <h2>Historical data</h2>
+        <p>
+          Flood marks DB/CSV: {floodMarks.length}/{floodCsv.length} · Storm track:{" "}
+          {stormPoints.length}/{stormCsv.length} · USGS stations:{" "}
+          {gaugeStations.length} · readings: {gaugeReadings.length}
+        </p>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button disabled={!isActive || busy || floodCsv.length === 0} onClick={() => void seedAllHistorical()}>
+            {busy ? "Seeding..." : "Seed all historical (CSV + USGS)"}
+          </button>
+          <button
+            disabled={!isActive}
+            onClick={() =>
+              void run("recompute threats", (c) =>
+                c.reducers.recomputeThreats({ regionTag: REGION }),
+              )
+            }
+          >
+            Recompute threats now
+          </button>
+        </div>
+        <p style={{ fontSize: 13, color: "#64748b" }}>
+          Formula: threat = 0.40·storm(proximity×wind) + 0.45·gauge(height/flood-stage×proximity)
+          + 0.15·historical(mark already surveyed by sim time). Regions expand around gages
+          as stage rises.
+        </p>
+      </section>
+
+      <section style={{ marginTop: 20 }}>
+        <h2>Simulation clock (hourly)</h2>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button
             disabled={!isActive}
             onClick={() =>
               void run("play", (c) =>
                 c.reducers.setSimulationPlaying({
-                  regionTag: "houston-harvey",
+                  regionTag: REGION,
                   isPlaying: true,
                 }),
               )
             }
           >
-            Play
+            Play (auto +1h)
           </button>
           <button
             disabled={!isActive}
             onClick={() =>
               void run("pause", (c) =>
                 c.reducers.setSimulationPlaying({
-                  regionTag: "houston-harvey",
+                  regionTag: REGION,
                   isPlaying: false,
                 }),
               )
@@ -119,52 +279,28 @@ export default function Home() {
           >
             Pause
           </button>
+          <button disabled={!isActive || busy} onClick={() => void tickHour()}>
+            Advance 1 sim-hour
+          </button>
           <button
             disabled={!isActive}
             onClick={() =>
-              void run("advance", (c) =>
-                c.reducers.advanceSimulation({
-                  regionTag: "houston-harvey",
-                  deltaMicros: 3_600_000_000n,
-                }),
-              )
+              void run("reset", async (c) => {
+                await c.reducers.resetSimulation({
+                  regionTag: REGION,
+                  simTimeMicros: 1503619200000000n,
+                });
+                await c.reducers.recomputeThreats({ regionTag: REGION });
+              })
             }
           >
-            Advance 1 sim-hour
+            Reset to Aug 25
           </button>
         </div>
       </section>
 
-      <section style={{ marginTop: 24 }}>
-        <h2>Historical flood marks</h2>
-        <p>
-          In database: <strong>{floodMarks.length}</strong> · parsed from CSV:{" "}
-          <strong>{floodCsv.length}</strong>{" "}
-          <span style={{ color: "#6b7280" }}>(real USGS observations)</span>
-        </p>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button
-            disabled={!isActive || seeding || floodCsv.length === 0}
-            onClick={() => {
-              setSeeding(true);
-              void run("seed flood marks", (c) =>
-                c.reducers.seedFloodMarks({ marks: floodCsv }),
-              ).finally(() => setSeeding(false));
-            }}
-          >
-            {seeding ? "Seeding..." : "Seed flood marks (one-time)"}
-          </button>
-          <button
-            disabled={!isActive || floodMarks.length === 0}
-            onClick={() => void run("clear flood marks", (c) => c.reducers.clearFloodMarks())}
-          >
-            Clear flood marks
-          </button>
-        </div>
-      </section>
-
-      <section style={{ marginTop: 24 }}>
-        <h2>Actions</h2>
+      <section style={{ marginTop: 20 }}>
+        <h2>Dispatch demo</h2>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button
             disabled={!isActive}
@@ -186,24 +322,6 @@ export default function Home() {
           </button>
           <button
             disabled={!isActive}
-            onClick={() =>
-              void run("create SOS", (c) =>
-                c.reducers.createRescueRequest({
-                  lat: 29.78,
-                  lon: -95.4,
-                  peopleCount: 1,
-                  medicalUrgent: false,
-                  stranded: false,
-                  needsTransport: false,
-                  description: "Needs sandbags / non-urgent help",
-                }),
-              )
-            }
-          >
-            Create low-priority SOS
-          </button>
-          <button
-            disabled={!isActive}
             onClick={() => void run("recommend", (c) => c.reducers.recommendDispatch())}
           >
             Recommend dispatch
@@ -221,48 +339,26 @@ export default function Home() {
             Confirm first recommendation
           </button>
         </div>
-      </section>
-
-      <section style={{ marginTop: 24 }}>
-        <h2>Teams ({teams.length})</h2>
-        <ul>
-          {teams.map((team) => (
-            <li key={String(team.id)}>
-              {team.name} · {team.status} · cap {team.capacity}
-              {team.hasMedical ? " · medical" : ""}
-              {team.hasBoat ? " · boat" : ""}
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section style={{ marginTop: 24 }}>
-        <h2>Priority queue</h2>
+        <h3>Priority queue</h3>
         <ul>
           {pendingSorted.map((req) => (
             <li key={String(req.id)}>
-              #{String(req.id)} score={req.priorityScore} · {req.status} ·{" "}
-              {req.description}
+              #{String(req.id)} score={req.priorityScore} · {req.status} · {req.description}
             </li>
           ))}
           {pendingSorted.length === 0 && <li>No open requests</li>}
         </ul>
-      </section>
-
-      <section style={{ marginTop: 24 }}>
-        <h2>Assignments</h2>
+        <h3>Teams</h3>
         <ul>
-          {assignments.map((a) => (
-            <li key={String(a.id)}>
-              #{String(a.id)} request={String(a.requestId)} team={String(a.teamId)} ·{" "}
-              {a.status}
+          {teams.map((team) => (
+            <li key={String(team.id)}>
+              {team.name} · {team.status}
             </li>
           ))}
-          {assignments.length === 0 && <li>None yet</li>}
         </ul>
       </section>
 
-      <section style={{ marginTop: 24 }}>
+      <section style={{ marginTop: 20 }}>
         <h2>Activity</h2>
         <ul>
           {recentEvents.map((e) => (

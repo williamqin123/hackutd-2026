@@ -41,8 +41,12 @@ import CreateRescueRequestReducer from "./create_rescue_request_reducer";
 import CreateRescueTeamReducer from "./create_rescue_team_reducer";
 import CreateSimulationReducer from "./create_simulation_reducer";
 import RecommendDispatchReducer from "./recommend_dispatch_reducer";
+import RecomputeThreatsReducer from "./recompute_threats_reducer";
 import ResetSimulationReducer from "./reset_simulation_reducer";
 import SeedFloodMarksReducer from "./seed_flood_marks_reducer";
+import SeedGaugeReadingsReducer from "./seed_gauge_readings_reducer";
+import SeedGaugeStationsReducer from "./seed_gauge_stations_reducer";
+import SeedStormTrackReducer from "./seed_storm_track_reducer";
 import SetSimulationPlayingReducer from "./set_simulation_playing_reducer";
 import SetSimulationSpeedReducer from "./set_simulation_speed_reducer";
 import SetTeamStatusReducer from "./set_team_status_reducer";
@@ -53,9 +57,14 @@ import SetTeamStatusReducer from "./set_team_status_reducer";
 import ActivityEventRow from "./activity_event_table";
 import DispatchAssignmentRow from "./dispatch_assignment_table";
 import FloodMarkRow from "./flood_mark_table";
+import GaugeReadingRow from "./gauge_reading_table";
+import GaugeStationRow from "./gauge_station_table";
 import RescueRequestRow from "./rescue_request_table";
 import RescueTeamRow from "./rescue_team_table";
 import SimulationStateRow from "./simulation_state_table";
+import SiteThreatRow from "./site_threat_table";
+import StormObservationRow from "./storm_observation_table";
+import ThreatRegionRow from "./threat_region_table";
 
 /** Type-only namespace exports for generated type groups. */
 
@@ -100,6 +109,32 @@ const tablesSchema = __schema({
       { name: 'flood_mark_object_id_key', constraint: 'unique', columns: ['objectId'] },
     ],
   }, FloodMarkRow),
+  gaugeReading: __table({
+    name: 'gauge_reading',
+    indexes: [
+      { accessor: 'id', name: 'gauge_reading_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'byStationTime', name: 'gauge_reading_station_id_time_micros_idx_btree', algorithm: 'btree', columns: [
+        'stationId',
+        'timeMicros',
+      ] },
+    ],
+    constraints: [
+      { name: 'gauge_reading_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, GaugeReadingRow),
+  gaugeStation: __table({
+    name: 'gauge_station',
+    indexes: [
+      { accessor: 'stationId', name: 'gauge_station_station_id_idx_btree', algorithm: 'btree', columns: [
+        'stationId',
+      ] },
+    ],
+    constraints: [
+      { name: 'gauge_station_station_id_key', constraint: 'unique', columns: ['stationId'] },
+    ],
+  }, GaugeStationRow),
   rescueRequest: __table({
     name: 'rescue_request',
     indexes: [
@@ -146,6 +181,48 @@ const tablesSchema = __schema({
       { name: 'simulation_state_region_tag_key', constraint: 'unique', columns: ['regionTag'] },
     ],
   }, SimulationStateRow),
+  siteThreat: __table({
+    name: 'site_threat',
+    indexes: [
+      { accessor: 'byLevel', name: 'site_threat_level_idx_btree', algorithm: 'btree', columns: [
+        'level',
+      ] },
+      { accessor: 'objectId', name: 'site_threat_object_id_idx_btree', algorithm: 'btree', columns: [
+        'objectId',
+      ] },
+      { accessor: 'byScore', name: 'site_threat_threat_score_idx_btree', algorithm: 'btree', columns: [
+        'threatScore',
+      ] },
+    ],
+    constraints: [
+      { name: 'site_threat_object_id_key', constraint: 'unique', columns: ['objectId'] },
+    ],
+  }, SiteThreatRow),
+  stormObservation: __table({
+    name: 'storm_observation',
+    indexes: [
+      { accessor: 'id', name: 'storm_observation_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'byTime', name: 'storm_observation_time_micros_idx_btree', algorithm: 'btree', columns: [
+        'timeMicros',
+      ] },
+    ],
+    constraints: [
+      { name: 'storm_observation_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, StormObservationRow),
+  threatRegion: __table({
+    name: 'threat_region',
+    indexes: [
+      { accessor: 'stationId', name: 'threat_region_station_id_idx_btree', algorithm: 'btree', columns: [
+        'stationId',
+      ] },
+    ],
+    constraints: [
+      { name: 'threat_region_station_id_key', constraint: 'unique', columns: ['stationId'] },
+    ],
+  }, ThreatRegionRow),
 });
 
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
@@ -157,8 +234,12 @@ const reducersSchema = __reducers(
   __reducerSchema("create_rescue_team", CreateRescueTeamReducer),
   __reducerSchema("create_simulation", CreateSimulationReducer),
   __reducerSchema("recommend_dispatch", RecommendDispatchReducer),
+  __reducerSchema("recompute_threats", RecomputeThreatsReducer),
   __reducerSchema("reset_simulation", ResetSimulationReducer),
   __reducerSchema("seed_flood_marks", SeedFloodMarksReducer),
+  __reducerSchema("seed_gauge_readings", SeedGaugeReadingsReducer),
+  __reducerSchema("seed_gauge_stations", SeedGaugeStationsReducer),
+  __reducerSchema("seed_storm_track", SeedStormTrackReducer),
   __reducerSchema("set_simulation_playing", SetSimulationPlayingReducer),
   __reducerSchema("set_simulation_speed", SetSimulationSpeedReducer),
   __reducerSchema("set_team_status", SetTeamStatusReducer),

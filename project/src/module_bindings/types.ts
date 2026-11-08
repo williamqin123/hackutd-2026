@@ -58,6 +58,39 @@ export const FloodMarkInput = __t.object("FloodMarkInput", {
 });
 export type FloodMarkInput = __Infer<typeof FloodMarkInput>;
 
+export const GaugeReading = __t.object("GaugeReading", {
+  id: __t.u64(),
+  stationId: __t.string(),
+  timeMicros: __t.i64(),
+  gageHeightFt: __t.f64(),
+});
+export type GaugeReading = __Infer<typeof GaugeReading>;
+
+export const GaugeReadingInput = __t.object("GaugeReadingInput", {
+  stationId: __t.string(),
+  timeMicros: __t.i64(),
+  gageHeightFt: __t.f64(),
+});
+export type GaugeReadingInput = __Infer<typeof GaugeReadingInput>;
+
+export const GaugeStation = __t.object("GaugeStation", {
+  stationId: __t.string(),
+  name: __t.string(),
+  lat: __t.f64(),
+  lon: __t.f64(),
+  floodStageFt: __t.f64(),
+});
+export type GaugeStation = __Infer<typeof GaugeStation>;
+
+export const GaugeStationInput = __t.object("GaugeStationInput", {
+  stationId: __t.string(),
+  name: __t.string(),
+  lat: __t.f64(),
+  lon: __t.f64(),
+  floodStageFt: __t.f64(),
+});
+export type GaugeStationInput = __Infer<typeof GaugeStationInput>;
+
 export const RescueRequest = __t.object("RescueRequest", {
   id: __t.u64(),
   lat: __t.f64(),
@@ -96,4 +129,51 @@ export const SimulationState = __t.object("SimulationState", {
   updatedAt: __t.timestamp(),
 });
 export type SimulationState = __Infer<typeof SimulationState>;
+
+export const SiteThreat = __t.object("SiteThreat", {
+  objectId: __t.i64(),
+  lat: __t.f64(),
+  lon: __t.f64(),
+  threatScore: __t.f64(),
+  level: __t.string(),
+  stormComponent: __t.f64(),
+  gaugeComponent: __t.f64(),
+  historicalComponent: __t.f64(),
+  nearestStationId: __t.option(__t.string()),
+  updatedSimMicros: __t.i64(),
+});
+export type SiteThreat = __Infer<typeof SiteThreat>;
+
+export const StormObservation = __t.object("StormObservation", {
+  id: __t.u64(),
+  timeMicros: __t.i64(),
+  lat: __t.f64(),
+  lon: __t.f64(),
+  windKt: __t.f64(),
+  sshs: __t.i32(),
+});
+export type StormObservation = __Infer<typeof StormObservation>;
+
+export const StormObservationInput = __t.object("StormObservationInput", {
+  timeMicros: __t.i64(),
+  lat: __t.f64(),
+  lon: __t.f64(),
+  windKt: __t.f64(),
+  sshs: __t.i32(),
+});
+export type StormObservationInput = __Infer<typeof StormObservationInput>;
+
+export const ThreatRegion = __t.object("ThreatRegion", {
+  stationId: __t.string(),
+  name: __t.string(),
+  lat: __t.f64(),
+  lon: __t.f64(),
+  radiusKm: __t.f64(),
+  gageHeightFt: __t.f64(),
+  floodStageFt: __t.f64(),
+  stageRatio: __t.f64(),
+  level: __t.string(),
+  updatedSimMicros: __t.i64(),
+});
+export type ThreatRegion = __Infer<typeof ThreatRegion>;
 

@@ -4,9 +4,9 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3001",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -p 3001",
     "lint": "next lint",
     "generate": "pnpm --dir spacetimedb install && cargo run -p gen-bindings -- --out-dir src/module_bindings --module-path spacetimedb && prettier --write src/module_bindings",
     "spacetime:generate": "spacetime generate --lang typescript --out-dir src/module_bindings --module-path spacetimedb",
@@ -14,13 +14,13 @@
     "spacetime:publish": "spacetime publish --module-path spacetimedb --server maincloud"
   },
   "dependencies": {
+    "leaflet": "^1.9.4",
     "next": "^15.0.0",
     "papaparse": "^5.7.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "spacetimedb": "2.14.*"
   },
-  "devDependencies": {},
   "engines": {
     "node": "^22.23.4 || ^24.22.1 || >=26.12.1"
   }
