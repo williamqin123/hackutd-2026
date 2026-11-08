@@ -192,10 +192,13 @@ Stations include Buffalo Bayou, White Oak Bayou, Brays Bayou, Cypress Creek (gag
 | `seedFloodMarks` / `seedStormTrack` / `seedGaugeStations` / `seedGaugeReadings` | One-time (or idempotent) historical import |
 | `setSimulationPlaying` / `advanceSimulation` / `seekSimulation` / `resetSimulation` | Clock control |
 | `recomputeThreats` | Rebuild `site_threat` + `threat_region` for current `T` |
-| `createRescueRequest` / `recommendDispatch` / `confirmDispatch` | SOS prioritization + dispatch demo |
+| `createRescueRequest` / `recommendDispatch` / `confirmDispatch` / `completeDispatch` | SOS prioritization + discrete dispatch demo |
+| `addSos` / `createSos` | Mobile SOS text log (`sos` table) |
 | `setTeamStatus` / `createRescueTeam` | Team management |
 
 SOS **priority** (separate from flood threat) is a simple deterministic score in `computePriorityScore`: medical (+1000), stranded (+400), transport (+150), people count.
+
+Mobile `/mobile/sos` may call Next.js `POST /api/analyze-sos` (Gemini when `GEMINI_API_KEY` is set, else heuristics) to propose those flags before `createRescueRequest`. **Gemini does not pick teams** — matching stays in `recommendDispatch`.
 
 ---
 
@@ -203,10 +206,11 @@ SOS **priority** (separate from flood threat) is a simple deterministic score in
 
 | UI piece | Reads (subscribe) | Writes (reducers) |
 | --- | --- | --- |
-| Map (`app/FloodMap.js`) | `threat_region`, `site_threat`, `flood_mark`, `storm_observation`, SOS/teams | — |
+| Map (`components/FloodMap.jsx`) | `threat_region`, `site_threat`, `flood_mark`, `storm_observation`, SOS/teams/assignments | — |
 | Timeline / play | `simulation_state` | `seekSimulation`, `advanceSimulation`, `setSimulationPlaying`, then `recomputeThreats` |
 | Seed button / auto-seed | — | seed\* reducers + `recomputeThreats` |
-| Dispatch panel | `rescue_request`, `rescue_team`, `dispatch_assignment`, `activity_event` | create / recommend / confirm |
+| Dispatch board | `rescue_request`, `rescue_team`, `dispatch_assignment`, `activity_event` | create / recommend / confirm / complete |
+| Mobile SOS (`/mobile/sos`) | — | `createRescueRequest` + `addSos` (flags via `/api/analyze-sos`) |
 
 Local defaults: SpacetimeDB DB name `waterboard`, Next on **port 3001**, Spacetime on **3000**.
 
@@ -246,9 +250,12 @@ Ordered by demo value vs effort:
 project/
   spacetimedb/src/index.ts      ← schema + threat + dispatch logic
   app/page.js                   ← dashboard composition / seed / dispatch
-  components/FloodMap.jsx       ← Leaflet threat map
+  components/FloodMap.jsx       ← Leaflet threat map + ranked SOS + match lines
   components/SimulationClock.jsx← 1h play ticks, slider, 8h jump
   components/ThreatSnapshot.jsx ← gage/site threat summary
+  components/DispatchBoard.jsx  ← priority queue + discrete dispatch
+  app/mobile/sos/               ← victim SOS page
+  app/api/analyze-sos/          ← Gemini/heuristic flag extraction
   lib/floods.js                 ← flood-mark JSON loader
   lib/hazard.js                 ← storm + USGS JSON loaders
   lib/sim-clock.js              ← Harvey window + tick helpers

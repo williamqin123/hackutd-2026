@@ -41,9 +41,15 @@ export default function SimulationClock({ sim, isActive, busy, run }) {
     const current = simTimeRef.current ?? SIM_START_MICROS;
     const next = clampMicros(current + deltaMicros);
     if (next === current) {
-      await run("pause at end", (c) =>
-        c.reducers.setSimulationPlaying({ regionTag: REGION, isPlaying: false }),
-      );
+      await run("end of cycle", async (c) => {
+        await c.reducers.setSimulationPlaying({
+          regionTag: REGION,
+          isPlaying: false,
+        });
+        if (c.reducers.clearRescueOps) {
+          await c.reducers.clearRescueOps();
+        }
+      });
       return;
     }
     await run(label, async (c) => {
@@ -52,6 +58,13 @@ export default function SimulationClock({ sim, isActive, busy, run }) {
         deltaMicros: next - current,
       });
       await c.reducers.recomputeThreats({ regionTag: REGION });
+      if (next >= SIM_END_MICROS && c.reducers.clearRescueOps) {
+        await c.reducers.clearRescueOps();
+        await c.reducers.setSimulationPlaying({
+          regionTag: REGION,
+          isPlaying: false,
+        });
+      }
     });
   }
 

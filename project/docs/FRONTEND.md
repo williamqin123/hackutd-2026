@@ -24,10 +24,13 @@ SpacetimeDB uses port **3000**; Next is on **3001** on purpose.
 
 | I want to change… | Edit this file |
 | --- | --- |
-| Page layout, seed/dispatch panels, copy/headings | `app/page.js` |
-| Map look, flood circles, markers, popups, legend, LIVE banner | `components/FloodMap.jsx` |
+| Page layout, seed panels, copy/headings | `app/page.js` |
+| Map look, flood circles, ranked SOS, TEAM↔SOS links | `components/FloodMap.jsx` |
 | Play / pause / 8-hour jump / timeline slider | `components/SimulationClock.jsx` |
 | Threat snapshot list under the map | `components/ThreatSnapshot.jsx` |
+| Priority queue + recommend/confirm/complete | `components/DispatchBoard.jsx` |
+| Mobile victim SOS form | `app/mobile/sos/page.js` |
+| Gemini text → SOS flags (server) | `app/api/analyze-sos/route.js` |
 | Clock constants (1h tick, Harvey window) | `lib/sim-clock.js` |
 | App title / HTML metadata / wrap providers | `app/layout.js` |
 | Spacetime connection host / DB name | `app/providers.js` + `.env.local` |
@@ -35,7 +38,7 @@ SpacetimeDB uses port **3000**; Next is on **3001** on purpose.
 | How flood-mark JSON is loaded for seeding | `lib/floods.js` |
 | How storm track / USGS JSON is loaded for seeding | `lib/hazard.js` |
 | Historical assets the UI fetches | `public/*.json` |
-| Env defaults / teammate Maincloud hints | `.env.example` |
+| Env defaults / Gemini key hint | `.env.example` |
 
 ### Do **not** hand-edit
 
@@ -51,14 +54,17 @@ SpacetimeDB uses port **3000**; Next is on **3001** on purpose.
 ```text
 project/
 ├── app/
-│   ├── page.js          ← dashboard: wires data + composes components
-│   ├── providers.js     ← SpacetimeDB React provider / connection
-│   ├── layout.js        ← root layout + document title
-│   └── globals.css      ← global styles
+│   ├── page.js              ← dashboard: wires data + composes components
+│   ├── providers.js         ← SpacetimeDB React provider / connection
+│   ├── layout.js            ← root layout + document title
+│   ├── globals.css          ← global styles
+│   ├── api/analyze-sos/     ← Gemini/heuristic SOS flag extraction
+│   └── mobile/sos/          ← victim mobile SOS page
 ├── components/
-│   ├── FloodMap.jsx         ← Leaflet threat map (browser-only)
+│   ├── FloodMap.jsx         ← Leaflet threat map + ranked SOS + match lines
 │   ├── SimulationClock.jsx  ← play / slider / 8-hour advance
-│   └── ThreatSnapshot.jsx   ← gage/site threat summary
+│   ├── ThreatSnapshot.jsx   ← gage/site threat summary
+│   └── DispatchBoard.jsx    ← priority queue + dispatch actions
 ├── lib/
 │   ├── sim-clock.js     ← Harvey window + 1h tick helpers
 │   ├── floods.js        ← load /harvey_flood_marks.json
@@ -72,6 +78,8 @@ project/
     ├── FRONTEND.md      ← this file
     └── THE_WATERBOARD.md
 ```
+
+**Ops viz note:** Dispatch is a discrete match graph (TEAM↔SOS lines + busy teams), not live GPS movement. The Harvey clock only advances flood threats.
 
 ---
 
@@ -102,8 +110,9 @@ export const PLAY_INTERVAL_MS = 400;               // how fast Play ticks
 | Map | `components/FloodMap.jsx` |
 | Simulation clock + slider | `components/SimulationClock.jsx` |
 | Threat snapshot | `components/ThreatSnapshot.jsx` |
+| Dispatch board | `components/DispatchBoard.jsx` |
 | Historical data / seed | `app/page.js` |
-| Dispatch demo / activity | `app/page.js` |
+| Activity | `app/page.js` |
 
 ### Calling the backend from the UI
 
@@ -140,7 +149,9 @@ Loaded with `next/dynamic(..., { ssr: false })` from `page.js` because Leaflet n
 | `threatRegions` | Gage flood circles (`threat_region` table) |
 | `siteThreats` | Per-mark scores (`site_threat`) |
 | `floodMarks` | Mark locations |
-| `requests` / `teams` | SOS + team markers |
+| `requests` / `teams` | Ranked SOS + team markers |
+| `assignments` | TEAM↔SOS match lines |
+| `selectedRequestId` | Highlight SOS from DispatchBoard |
 
 ### Where visuals are defined
 
