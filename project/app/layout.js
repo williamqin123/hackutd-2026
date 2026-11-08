@@ -6,18 +6,18 @@ export const metadata = {
   description: "Historical flood-response simulation and dispatch coordination",
   manifest: "/manifest.json",
   icons: {
-    icon: "/favicon.png",
-    apple: "/apple-icon.png",
+    icon: "/favicon-teal.png",
+    apple: "/favicon-teal.png",
   },
   appleWebApp: {
     capable: true,
     title: "WaterBoard",
-    statusBarStyle: "black-translucent",
+    statusBarStyle: "default",
   },
 };
 
 export const viewport = {
-  themeColor: "#dc2626",
+  themeColor: "#1a7f7a",
 };
 
 export default function RootLayout({ children }) {
