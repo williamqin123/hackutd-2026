@@ -77,6 +77,20 @@
   cursor: not-allowed;
 }
 
+.actions .danger {
+  background: #b82e29;
+}
+
+.actions .danger:hover:not(:disabled) {
+  background: #8f221e;
+}
+
+.demoNote {
+  margin: 0 0 12px;
+  color: #334155;
+  font-size: 12px;
+}
+
 .actions button:focus-visible,
 .card summary:focus-visible {
   outline: 3px solid #107c83;

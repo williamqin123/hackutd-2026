@@ -32,7 +32,7 @@ function microsToLabel(micros) {
  * Live Houston flood map for WaterBoard.
  * Layers: OSM basemap, storm track, gauge flood zones, active flood sites.
  */
-const OPEN_ASSIGNMENT = new Set(["recommended", "confirmed", "en_route"]);
+const OPEN_ASSIGNMENT = new Set(["confirmed", "en_route"]);
 
 const SOS_HALO_METERS = 1800;
 

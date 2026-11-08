@@ -409,7 +409,7 @@ function createRecommendedAssignment(ctx, request, team) {
     if (team.status !== "available") {
         throw new SenderError("team is not available");
     }
-    ctx.db.dispatchAssignment.insert({
+    const assignment = ctx.db.dispatchAssignment.insert({
         id: 0n,
         requestId: request.id,
         teamId: team.id,
@@ -423,6 +423,52 @@ function createRecommendedAssignment(ctx, request, team) {
         updatedAt: ctx.timestamp,
     });
     logActivity(ctx, "dispatch", `Recommended ${team.name} for SOS #${request.id}`, request.id, team.id);
+    return assignment;
+}
+
+function confirmRecommended(ctx, assignment) {
+    if (assignment.status !== "recommended") {
+        throw new SenderError("only recommended assignments can be confirmed");
+    }
+    const team = ctx.db.rescueTeam.id.find(assignment.teamId);
+    const request = ctx.db.rescueRequest.id.find(assignment.requestId);
+    if (!team || !request)
+        throw new SenderError("assignment references missing rows");
+    if (team.status !== "available")
+        throw new SenderError("team no longer available");
+    ctx.db.dispatchAssignment.id.update({
+        ...assignment,
+        status: "confirmed",
+        updatedAt: ctx.timestamp,
+    });
+    ctx.db.rescueTeam.id.update({
+        ...team,
+        lat: request.lat,
+        lon: request.lon,
+        status: "busy",
+        updatedAt: ctx.timestamp,
+    });
+    ctx.db.rescueRequest.id.update({
+        ...request,
+        status: "assigned",
+        updatedAt: ctx.timestamp,
+    });
+    logActivity(ctx, "dispatch", `Confirmed dispatch of ${team.name} to SOS #${request.id}`, request.id, team.id);
+}
+
+function pickNextPending(ctx) {
+    const pending = [...ctx.db.rescueRequest.iter()]
+        .filter((r) => r.status === "pending")
+        .sort((a, b) => b.priorityScore - a.priorityScore);
+    if (pending.length === 0)
+        throw new SenderError("no pending requests");
+    const request = pending.find((r) => !hasOpenAssignment(ctx, r.id));
+    if (!request)
+        throw new SenderError("all pending requests already have assignments");
+    const available = availableTeamsForRequest(ctx, request);
+    if (available.length === 0)
+        throw new SenderError("no available team");
+    return { request, team: sortTeamsForRequest(request, available)[0] };
 }
 export const init = spacetimedb.init((ctx) => {
     // Seed one paused Houston simulation + scattered rescue units.
@@ -651,21 +697,32 @@ export const setTeamStatus = spacetimedb.reducer({ teamId: t.u64(), status: t.st
  * that does not already have an open assignment.
  */
 export const recommendDispatch = spacetimedb.reducer((ctx) => {
-    const pending = [...ctx.db.rescueRequest.iter()]
-        .filter((r) => r.status === "pending")
-        .sort((a, b) => b.priorityScore - a.priorityScore);
-    if (pending.length === 0) {
-        throw new SenderError("no pending requests");
-    }
-    const request = pending.find((r) => !hasOpenAssignment(ctx, r.id));
-    if (!request)
-        throw new SenderError("all pending requests already have assignments");
-    const available = availableTeamsForRequest(ctx, request);
-    if (available.length === 0) {
-        throw new SenderError("no available team");
-    }
-    const team = sortTeamsForRequest(request, available)[0];
+    const { request, team } = pickNextPending(ctx);
     createRecommendedAssignment(ctx, request, team);
+});
+
+/** Recommend and confirm the next pending SOS in one step (isolated AI demo). */
+export const autoDispatchNext = spacetimedb.reducer((ctx) => {
+    const { request, team } = pickNextPending(ctx);
+    const assignment = createRecommendedAssignment(ctx, request, team);
+    confirmRecommended(ctx, assignment);
+});
+
+/** Dispatch one specific pending SOS and confirm the nearest capable team. */
+export const dispatchRequest = spacetimedb.reducer({ requestId: t.u64() }, (ctx, { requestId }) => {
+    const request = ctx.db.rescueRequest.id.find(requestId);
+    if (!request)
+        throw new SenderError("request not found");
+    if (request.status !== "pending")
+        throw new SenderError("only pending requests can be dispatched");
+    if (hasOpenAssignment(ctx, request.id))
+        throw new SenderError("request already has an open assignment");
+    const available = availableTeamsForRequest(ctx, request);
+    if (available.length === 0)
+        throw new SenderError("no available team");
+    const team = sortTeamsForRequest(request, available)[0];
+    const assignment = createRecommendedAssignment(ctx, request, team);
+    confirmRecommended(ctx, assignment);
 });
 
 /** Auto-pick the best available team for a specific pending SOS. */
@@ -701,34 +758,32 @@ export const confirmDispatch = spacetimedb.reducer({ assignmentId: t.u64() }, (c
     const assignment = ctx.db.dispatchAssignment.id.find(assignmentId);
     if (!assignment)
         throw new SenderError("assignment not found");
-    if (assignment.status !== "recommended") {
-        throw new SenderError("only recommended assignments can be confirmed");
+    confirmRecommended(ctx, assignment);
+});
+
+/** Wipe SOS, assignments, and the message log, then send teams home. Isolated demos use this. */
+export const clearRescueBoard = spacetimedb.reducer((ctx) => {
+    for (const assignment of [...ctx.db.dispatchAssignment.iter()]) {
+        ctx.db.dispatchAssignment.id.delete(assignment.id);
     }
-    const team = ctx.db.rescueTeam.id.find(assignment.teamId);
-    const request = ctx.db.rescueRequest.id.find(assignment.requestId);
-    if (!team || !request)
-        throw new SenderError("assignment references missing rows");
-    if (team.status !== "available")
-        throw new SenderError("team no longer available");
-    ctx.db.dispatchAssignment.id.update({
-        ...assignment,
-        status: "confirmed",
-        updatedAt: ctx.timestamp,
-    });
-    // Move team to the SOS — last-known position stays here after complete.
-    ctx.db.rescueTeam.id.update({
-        ...team,
-        lat: request.lat,
-        lon: request.lon,
-        status: "busy",
-        updatedAt: ctx.timestamp,
-    });
-    ctx.db.rescueRequest.id.update({
-        ...request,
-        status: "assigned",
-        updatedAt: ctx.timestamp,
-    });
-    logActivity(ctx, "dispatch", `Confirmed dispatch of ${team.name} to SOS #${request.id}`, request.id, team.id);
+    for (const request of [...ctx.db.rescueRequest.iter()]) {
+        ctx.db.rescueRequest.id.delete(request.id);
+    }
+    for (const row of [...ctx.db.sos.iter()]) {
+        ctx.db.sos.id.delete(row.id);
+    }
+    const homes = new Map(HOUSTON_TEAMS.map((team) => [team.name, team]));
+    for (const team of [...ctx.db.rescueTeam.iter()]) {
+        const home = homes.get(team.name);
+        ctx.db.rescueTeam.id.update({
+            ...team,
+            lat: home?.lat ?? team.lat,
+            lon: home?.lon ?? team.lon,
+            status: "available",
+            updatedAt: ctx.timestamp,
+        });
+    }
+    logActivity(ctx, "demo", "Cleared the SOS board and reset teams to home bases");
 });
 
 /** Undo a recommendation so the SOS returns to the pending queue. */

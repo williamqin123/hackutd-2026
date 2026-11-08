@@ -19,6 +19,7 @@ import SummaryCards from "./SummaryCards";
 import OperationsCards from "./OperationsCards";
 import SosList from "./SosList";
 import DeveloperPanel from "./DeveloperPanel";
+import AiDemoControls from "./AiDemoControls";
 import styles from "./Dashboard.module.css";
 
 const FloodMap = dynamic(() => import("../FloodMap"), {
@@ -335,6 +336,17 @@ export default function Dashboard() {
           Historical sensor data stands in for incoming conditions. These
           controls change the shared demo state across the dashboard.
         </p>
+
+        <AiDemoControls
+          sim={sim}
+          requests={requests}
+          teams={teams}
+          assignments={assignments}
+          threatRegions={threatRegions}
+          isActive={isActive}
+          ready={ready}
+          run={run}
+        />
 
         <SimulationClock
           sim={sim}
