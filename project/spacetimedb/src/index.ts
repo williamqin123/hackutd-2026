@@ -272,6 +272,19 @@ const threatRegion = table(
   },
 );
 
+const sos = table(
+  {
+    name: "sos",
+    public: true,
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    location: t.string(),
+    timestamp: t.timestamp(),
+    text: t.string(),
+  },
+);
+
 const spacetimedb = schema({
   simulationState,
   rescueRequest,
@@ -284,6 +297,7 @@ const spacetimedb = schema({
   gaugeReading,
   siteThreat,
   threatRegion,
+  sos,
 });
 
 export default spacetimedb;
@@ -963,3 +977,42 @@ export const recomputeThreats = spacetimedb.reducer(
     );
   },
 );
+
+function handleAddSos(ctx: Ctx, location: string, text: string) {
+  const loc = location.trim() || "Harris County, Texas";
+  const txt = text.trim();
+  const row = ctx.db.sos.insert({
+    id: 0n,
+    location: loc,
+    timestamp: ctx.timestamp,
+    text: txt,
+  });
+
+  logActivity(
+    ctx,
+    "sos",
+    `Emergency SOS: ${loc} - ${txt.slice(0, 50) || "No message"}`,
+    row.id,
+  );
+}
+
+export const addSos = spacetimedb.reducer(
+  {
+    location: t.string(),
+    text: t.string(),
+  },
+  (ctx, args) => {
+    handleAddSos(ctx, args.location, args.text);
+  },
+);
+
+export const createSos = spacetimedb.reducer(
+  {
+    location: t.string(),
+    text: t.string(),
+  },
+  (ctx, args) => {
+    handleAddSos(ctx, args.location, args.text);
+  },
+);
+

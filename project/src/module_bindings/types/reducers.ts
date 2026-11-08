@@ -6,12 +6,14 @@
 import { type Infer as __Infer } from "spacetimedb";
 
 // Import all reducer arg schemas
+import AddSosReducer from "../add_sos_reducer";
 import AdvanceSimulationReducer from "../advance_simulation_reducer";
 import ClearFloodMarksReducer from "../clear_flood_marks_reducer";
 import ConfirmDispatchReducer from "../confirm_dispatch_reducer";
 import CreateRescueRequestReducer from "../create_rescue_request_reducer";
 import CreateRescueTeamReducer from "../create_rescue_team_reducer";
 import CreateSimulationReducer from "../create_simulation_reducer";
+import CreateSosReducer from "../create_sos_reducer";
 import RecommendDispatchReducer from "../recommend_dispatch_reducer";
 import RecomputeThreatsReducer from "../recompute_threats_reducer";
 import ResetSimulationReducer from "../reset_simulation_reducer";
@@ -24,12 +26,14 @@ import SetSimulationPlayingReducer from "../set_simulation_playing_reducer";
 import SetSimulationSpeedReducer from "../set_simulation_speed_reducer";
 import SetTeamStatusReducer from "../set_team_status_reducer";
 
+export type AddSosParams = __Infer<typeof AddSosReducer>;
 export type AdvanceSimulationParams = __Infer<typeof AdvanceSimulationReducer>;
 export type ClearFloodMarksParams = __Infer<typeof ClearFloodMarksReducer>;
 export type ConfirmDispatchParams = __Infer<typeof ConfirmDispatchReducer>;
 export type CreateRescueRequestParams = __Infer<typeof CreateRescueRequestReducer>;
 export type CreateRescueTeamParams = __Infer<typeof CreateRescueTeamReducer>;
 export type CreateSimulationParams = __Infer<typeof CreateSimulationReducer>;
+export type CreateSosParams = __Infer<typeof CreateSosReducer>;
 export type RecommendDispatchParams = __Infer<typeof RecommendDispatchReducer>;
 export type RecomputeThreatsParams = __Infer<typeof RecomputeThreatsReducer>;
 export type ResetSimulationParams = __Infer<typeof ResetSimulationReducer>;

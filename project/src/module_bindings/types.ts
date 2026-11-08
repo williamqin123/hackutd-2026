@@ -144,6 +144,14 @@ export const SiteThreat = __t.object("SiteThreat", {
 });
 export type SiteThreat = __Infer<typeof SiteThreat>;
 
+export const Sos = __t.object("Sos", {
+  id: __t.u64(),
+  location: __t.string(),
+  timestamp: __t.timestamp(),
+  text: __t.string(),
+});
+export type Sos = __Infer<typeof Sos>;
+
 export const StormObservation = __t.object("StormObservation", {
   id: __t.u64(),
   timeMicros: __t.i64(),
