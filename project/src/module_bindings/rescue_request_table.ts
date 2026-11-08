@@ -23,4 +23,5 @@ export default __t.row({
   priorityScore: __t.i32().name("priority_score"),
   createdAt: __t.timestamp().name("created_at"),
   updatedAt: __t.timestamp().name("updated_at"),
+  location: __t.string(),
 });

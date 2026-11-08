@@ -132,6 +132,7 @@ export const RescueRequest = __t.object("RescueRequest", {
   priorityScore: __t.i32(),
   createdAt: __t.timestamp(),
   updatedAt: __t.timestamp(),
+  location: __t.string(),
 });
 export type RescueRequest = __Infer<typeof RescueRequest>;
 
@@ -180,14 +181,6 @@ export const SiteThreat = __t.object("SiteThreat", {
   updatedSimMicros: __t.i64(),
 });
 export type SiteThreat = __Infer<typeof SiteThreat>;
-
-export const Sos = __t.object("Sos", {
-  id: __t.u64(),
-  location: __t.string(),
-  timestamp: __t.timestamp(),
-  text: __t.string(),
-});
-export type Sos = __Infer<typeof Sos>;
 
 export const StormObservation = __t.object("StormObservation", {
   id: __t.u64(),

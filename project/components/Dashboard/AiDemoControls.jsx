@@ -104,6 +104,7 @@ export default function AiDemoControls({
         stranded: message.stranded !== false,
         needsTransport: message.needsTransport !== false,
         description: drill ? `${DRILL_TAG} ${message.description}` : message.description,
+        location: anchor?.name || "",
       }));
     }
     return data.source === "openrouter" ? "OpenRouter" : "fallback text";

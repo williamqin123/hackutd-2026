@@ -18,4 +18,5 @@ export default {
   stranded: __t.bool(),
   needsTransport: __t.bool(),
   description: __t.string(),
+  location: __t.string(),
 };

@@ -56,6 +56,7 @@ export function importCsvRecords(ctx, { shelters, requests }, fail) {
             stranded: row.stranded,
             needsTransport: row.needsTransport,
             description: row.description.trim(),
+            location: "",
             status: "pending",
             priorityScore,
             createdAt: new Timestamp(ctx.timestamp.microsSinceUnixEpoch - BigInt(row.waitMinutes) * 60000000n),
