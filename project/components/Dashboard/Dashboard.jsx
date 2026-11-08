@@ -112,15 +112,6 @@ export default function Dashboard() {
     [requests],
   );
 
-  const awaitingSorted = useMemo(
-    () =>
-      openSorted.filter(
-        (request) =>
-          request.status === "pending" || request.status === "recommended",
-      ),
-    [openSorted],
-  );
-
   const recentEvents = useMemo(
     () =>
       [...events]
@@ -283,7 +274,7 @@ export default function Dashboard() {
       )}
 
       <SummaryCards
-        requests={awaitingSorted}
+        requests={openSorted}
         teams={teams}
         requestsReady={reqReady}
         teamsReady={teamsReady}
