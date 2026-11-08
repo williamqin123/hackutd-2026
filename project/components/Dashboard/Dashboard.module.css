@@ -5,8 +5,9 @@
   min-height: 100dvh;
   margin: 0;
   padding: 28px;
-  background: #edf2f6;
-  color: #122638;
+  background: var(--wb-page-background);
+  background-size: auto, 40px 40px, 40px 40px, auto;
+  color: var(--wb-text);
   font-family: Arial, Helvetica, sans-serif;
 }
 
@@ -22,7 +23,7 @@
 
 .intro p {
   margin: 4px 0;
-  color: #64768a;
+  color: var(--wb-muted);
   font-size: 13px;
 }
 
@@ -30,7 +31,9 @@
   margin: 0 0 20px;
   padding: 20px;
   border-radius: 20px;
-  background: white;
+  background: var(--wb-surface);
+  border: 1px solid var(--wb-border);
+  box-shadow: var(--wb-panel-shadow);
 }
 
 .card h2 {
@@ -44,7 +47,7 @@
 }
 
 .muted {
-  color: #64768a;
+  color: var(--wb-muted);
   font-size: 13px;
 }
 
@@ -60,8 +63,8 @@
   padding: 10px 14px;
   border: none;
   border-radius: 10px;
-  background: #107c83;
-  color: white;
+  background: var(--wb-accent);
+  color: var(--wb-on-accent);
   font: inherit;
   font-size: 13px;
   font-weight: 700;
@@ -69,7 +72,7 @@
 }
 
 .actions button:hover:not(:disabled) {
-  background: #0c666c;
+  background: var(--wb-accent-hover);
 }
 
 .actions button:disabled {
@@ -93,7 +96,7 @@
 
 .actions button:focus-visible,
 .card summary:focus-visible {
-  outline: 3px solid #107c83;
+  outline: 3px solid var(--wb-accent);
   outline-offset: 3px;
 }
 
@@ -108,7 +111,7 @@
 .list li {
   padding: 14px;
   border-radius: 12px;
-  background: #f5f7fa;
+  background: var(--wb-raised);
   overflow-wrap: anywhere;
 }
 
@@ -119,15 +122,15 @@
 .notice {
   padding: 14px;
   border-radius: 12px;
-  background: #fff1c9;
-  color: #8a5908;
+  background: var(--wb-warning-soft);
+  color: var(--wb-warning);
 }
 
 .error {
   padding: 14px;
   border-radius: 12px;
-  background: #fde5e3;
-  color: #b82e29;
+  background: var(--wb-danger-soft);
+  color: var(--wb-danger);
   overflow-wrap: anywhere;
 }
 
@@ -136,8 +139,8 @@
   place-items: center;
   height: 520px;
   border-radius: 12px;
-  background: #f5f7fa;
-  color: #64768a;
+  background: var(--wb-raised);
+  color: var(--wb-muted);
 }
 
 @media (max-width: 640px) {

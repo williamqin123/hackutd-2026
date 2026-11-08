@@ -1,4 +1,6 @@
 import { Providers } from "./providers";
+import { ThemeProvider } from "../components/ThemeProvider";
+import { THEME_BOOTSTRAP } from "../lib/theme";
 import "./globals.css";
 
 export const metadata = {
@@ -17,14 +19,15 @@ export const metadata = {
 };
 
 export const viewport = {
-  themeColor: "#1a7f7a",
+  themeColor: "#070b14",
 };
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="en" data-theme="cyberpunk" suppressHydrationWarning>
+      <head><script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} /></head>
       <body>
-        <Providers>{children}</Providers>
+        <ThemeProvider><Providers>{children}</Providers></ThemeProvider>
       </body>
     </html>
   );
