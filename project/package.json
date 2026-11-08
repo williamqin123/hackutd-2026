@@ -15,16 +15,12 @@
   },
   "dependencies": {
     "next": "^15.0.0",
+    "papaparse": "^5.7.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "spacetimedb": "2.14.*"
   },
-  "devDependencies": {
-    "@types/node": "^20",
-    "@types/react": "^18.3.18",
-    "@types/react-dom": "^18.3.5",
-    "typescript": "~5.6.2"
-  },
+  "devDependencies": {},
   "engines": {
     "node": "^22.23.4 || ^24.22.1 || >=26.12.1"
   }
