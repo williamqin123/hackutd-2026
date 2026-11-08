@@ -8,9 +8,44 @@ import {
   t as __t,
   type AlgebraicTypeType as __AlgebraicTypeType,
   type Infer as __Infer,
-} from 'spacetimedb';
+} from "spacetimedb";
 
-export const Person = __t.object('Person', {
-  name: __t.string(),
+export const FloodData = __t.object("FloodData", {
+  objectid: __t.i64(),
+  latitudeDd: __t.f64(),
+  longitudeDd: __t.f64(),
+  eventName: __t.string(),
+  hwmTypeName: __t.string(),
+  hwmQualityName: __t.string(),
+  verticalDatumName: __t.string(),
+  verticalMethodName: __t.string(),
+  horizontalMethodName: __t.string(),
+  horizontalDatumName: __t.string(),
+  siteNo: __t.option(__t.string()),
+  siteDescription: __t.option(__t.string()),
+  countyName: __t.option(__t.string()),
+  siteZone: __t.option(__t.string()),
+  sitePermHousing: __t.option(__t.string()),
+  hwmId: __t.option(__t.i64()),
+  waterbody: __t.option(__t.string()),
+  siteId: __t.option(__t.i64()),
+  eventId: __t.option(__t.i64()),
+  hwmTypeId: __t.option(__t.i64()),
+  hwmQualityId: __t.option(__t.i64()),
+  hwmLocationdescription: __t.option(__t.string()),
+  surveyDate: __t.option(__t.string()),
+  elevFt: __t.option(__t.f64()),
+  bank: __t.option(__t.string()),
+  markerId: __t.option(__t.i64()),
+  heightAboveGnd: __t.option(__t.f64()),
+  hwmEnvironment: __t.option(__t.string()),
+  hwmLabel: __t.option(__t.string()),
+  surveyDate: __t.string(),
 });
-export type Person = __Infer<typeof Person>;
+export type FloodData = __Infer<typeof FloodData>;
+
+export const GetFloodsAfter = __t.object("GetFloodsAfter", {
+  timestamp: __t.string(),
+});
+export type GetFloodsAfter = __Infer<typeof GetFloodsAfter>;
+
