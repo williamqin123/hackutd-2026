@@ -37,14 +37,17 @@ import {
 import AddSosReducer from "./add_sos_reducer";
 import AdvanceSimulationReducer from "./advance_simulation_reducer";
 import AssignDispatchReducer from "./assign_dispatch_reducer";
+import AutoDispatchNextReducer from "./auto_dispatch_next_reducer";
 import CancelDispatchReducer from "./cancel_dispatch_reducer";
 import ClearFloodMarksReducer from "./clear_flood_marks_reducer";
+import ClearRescueBoardReducer from "./clear_rescue_board_reducer";
 import CompleteDispatchReducer from "./complete_dispatch_reducer";
 import ConfirmDispatchReducer from "./confirm_dispatch_reducer";
 import CreateRescueRequestReducer from "./create_rescue_request_reducer";
 import CreateRescueTeamReducer from "./create_rescue_team_reducer";
 import CreateSimulationReducer from "./create_simulation_reducer";
 import CreateSosReducer from "./create_sos_reducer";
+import DispatchRequestReducer from "./dispatch_request_reducer";
 import ImportCsvDataReducer from "./import_csv_data_reducer";
 import RecommendDispatchReducer from "./recommend_dispatch_reducer";
 import RecommendDispatchForReducer from "./recommend_dispatch_for_reducer";
@@ -263,14 +266,17 @@ const reducersSchema = __reducers(
   __reducerSchema("add_sos", AddSosReducer),
   __reducerSchema("advance_simulation", AdvanceSimulationReducer),
   __reducerSchema("assign_dispatch", AssignDispatchReducer),
+  __reducerSchema("auto_dispatch_next", AutoDispatchNextReducer),
   __reducerSchema("cancel_dispatch", CancelDispatchReducer),
   __reducerSchema("clear_flood_marks", ClearFloodMarksReducer),
+  __reducerSchema("clear_rescue_board", ClearRescueBoardReducer),
   __reducerSchema("complete_dispatch", CompleteDispatchReducer),
   __reducerSchema("confirm_dispatch", ConfirmDispatchReducer),
   __reducerSchema("create_rescue_request", CreateRescueRequestReducer),
   __reducerSchema("create_rescue_team", CreateRescueTeamReducer),
   __reducerSchema("create_simulation", CreateSimulationReducer),
   __reducerSchema("create_sos", CreateSosReducer),
+  __reducerSchema("dispatch_request", DispatchRequestReducer),
   __reducerSchema("import_csv_data", ImportCsvDataReducer),
   __reducerSchema("recommend_dispatch", RecommendDispatchReducer),
   __reducerSchema("recommend_dispatch_for", RecommendDispatchForReducer),

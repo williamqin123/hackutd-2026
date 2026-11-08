@@ -12,12 +12,15 @@ export default function SummaryCards({ requests, teams, requestsReady, teamsRead
     return () => clearInterval(timer);
   }, []);
 
-  const critical = requests.filter(
-    (request) => request.medicalUrgent && request.stranded,
-  ).length;
+  const active = requests.filter((request) =>
+    ["pending", "recommended", "assigned"].includes(request.status),
+  );
+  const awaiting = active.filter((request) =>
+    request.status === "pending" || request.status === "recommended",
+  );
   const available = teams.filter((team) => team.status === "available");
   const boatAndMedic = available.some((team) => team.hasBoat && team.hasMedical);
-  const longestWait = now === null ? null : requests.reduce((longest, request) => {
+  const longestWait = now === null ? null : awaiting.reduce((longest, request) => {
     const created = Number(request.createdAt.microsSinceUnixEpoch / 1000n);
     return Math.max(longest, Math.floor((now - created) / 60000));
   }, 0);
@@ -25,21 +28,21 @@ export default function SummaryCards({ requests, teams, requestsReady, teamsRead
   return (
     <section className={styles.grid} aria-label="Response summary">
       <article className={`${styles.card} ${styles.critical}`}>
-        <h2>Critical SOS</h2>
+        <h2>Active SOS</h2>
         <div className={styles.content}>
-          <p className={styles.value}>{requestsReady ? critical : "—"}</p>
-          <p className={styles.description}>Medically urgent + stranded</p>
+          <p className={styles.value}>{requestsReady ? active.length : "—"}</p>
+          <p className={styles.description}>Active requests on the map</p>
         </div>
       </article>
 
       <article className={`${styles.card} ${styles.waiting}`}>
         <h2>Awaiting a team</h2>
         <div className={styles.content}>
-          <p className={styles.value}>{requestsReady ? requests.length : "—"}</p>
+          <p className={styles.value}>{requestsReady ? awaiting.length : "—"}</p>
           <p className={styles.description}>
             {!requestsReady || longestWait === null
               ? "Loading wait times…"
-              : requests.length === 0
+              : awaiting.length === 0
                 ? "No requests waiting"
                 : `Longest wait: ${longestWait} min`}
           </p>

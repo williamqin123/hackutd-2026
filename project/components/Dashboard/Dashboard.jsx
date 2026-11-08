@@ -19,6 +19,7 @@ import SummaryCards from "./SummaryCards";
 import OperationsCards from "./OperationsCards";
 import SosList from "./SosList";
 import DeveloperPanel from "./DeveloperPanel";
+import AiDemoControls from "./AiDemoControls";
 import styles from "./Dashboard.module.css";
 
 const FloodMap = dynamic(() => import("../FloodMap"), {
@@ -110,15 +111,6 @@ export default function Dashboard() {
         )
         .sort((a, b) => b.priorityScore - a.priorityScore),
     [requests],
-  );
-
-  const awaitingSorted = useMemo(
-    () =>
-      openSorted.filter(
-        (request) =>
-          request.status === "pending" || request.status === "recommended",
-      ),
-    [openSorted],
   );
 
   const recentEvents = useMemo(
@@ -264,7 +256,7 @@ export default function Dashboard() {
       />
 
       <div className={styles.intro}>
-        <h1>Every request. A coordinated response.</h1>
+        
         <p>Houston, Texas / Emergency response operations</p>
       </div>
 
@@ -283,7 +275,7 @@ export default function Dashboard() {
       )}
 
       <SummaryCards
-        requests={awaitingSorted}
+        requests={openSorted}
         teams={teams}
         requestsReady={reqReady}
         teamsReady={teamsReady}
@@ -304,6 +296,7 @@ export default function Dashboard() {
               siteThreats={siteThreats}
               floodMarks={floodMarks}
               requests={requests}
+              connected={isActive && reqReady}
               teams={teams}
               assignments={assignments}
               selectedRequestId={selectedRequestId}
@@ -343,6 +336,17 @@ export default function Dashboard() {
           Historical sensor data stands in for incoming conditions. These
           controls change the shared demo state across the dashboard.
         </p>
+
+        <AiDemoControls
+          sim={sim}
+          requests={requests}
+          teams={teams}
+          assignments={assignments}
+          threatRegions={threatRegions}
+          isActive={isActive}
+          ready={ready}
+          run={run}
+        />
 
         <SimulationClock
           sim={sim}

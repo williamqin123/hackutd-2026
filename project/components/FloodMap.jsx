@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import MapControls from "./MapControls";
+import { SosArrivalTracker } from "../lib/sos-arrivals";
 
 const LEVEL_COLORS = {
   none: "#94a3b8",
@@ -31,7 +32,7 @@ function microsToLabel(micros) {
  * Live Houston flood map for WaterBoard.
  * Layers: OSM basemap, storm track, gauge flood zones, active flood sites.
  */
-const OPEN_ASSIGNMENT = new Set(["recommended", "confirmed", "en_route"]);
+const OPEN_ASSIGNMENT = new Set(["confirmed", "en_route"]);
 
 const SOS_HALO_METERS = 1800;
 
@@ -44,12 +45,15 @@ export default function FloodMap({
   requests = [],
   teams = [],
   assignments = [],
+  connected = false,
   selectedRequestId = null,
   onSelectRequest,
 }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const layersRef = useRef(null);
+  const arrivalsRef = useRef(null);
+  if (arrivalsRef.current === null) arrivalsRef.current = new SosArrivalTracker();
   const onSelectRequestRef = useRef(onSelectRequest);
   onSelectRequestRef.current = onSelectRequest;
   const [visibleLayers, setVisibleLayers] = useState({
@@ -175,8 +179,6 @@ export default function FloodMap({
     layers.floods.clearLayers();
     layers.track.clearLayers();
     layers.marks.clearLayers();
-    layers.units.clearLayers();
-    layers.teamUnits.clearLayers();
     layers.labels.clearLayers();
 
     // USGS gages: 4 imported sensors. Color follows live stage ratio — not hardcoded.
@@ -307,6 +309,28 @@ export default function FloodMap({
       layers.marks.addLayer(marker);
     }
 
+  }, [stormPath, currentStorm, threatRegions, siteThreats, floodMarks]);
+
+  // Track insertions separately from status, selection, and simulation updates.
+  useEffect(() => {
+    const layers = layersRef.current;
+    if (!layers) return;
+    layers.units.clearLayers();
+    layers.teamUnits.clearLayers();
+    const now = performance.now();
+    arrivalsRef.current.update(requests, connected, now);
+    const arrivalDecoration = (id) => {
+      const elapsed = arrivalsRef.current.elapsed(id, now);
+      return elapsed === null
+        ? { className: "", style: "" }
+        : {
+            className: " waterboard-chip-sos-new",
+            // Preserve the original animation position when Leaflet rebuilds
+            // this marker after a selection or dispatch update.
+            style: ` style="--sos-arrival-delay: -${Math.floor(elapsed)}ms"`,
+          };
+    };
+
     // Active SOS only — completed/cancelled leave the map so teams don't overlap ghosts.
     const activeRequests = requests.filter((req) =>
       ["pending", "recommended", "assigned"].includes(req.status),
@@ -344,6 +368,7 @@ export default function FloodMap({
 
     for (const { request: req, team, assignment } of pairedByRequest.values()) {
       const selected = String(selectedRequestId) === String(req.id);
+      const arrival = arrivalDecoration(req.id);
       addSosHalo(req, selected);
       L.marker([req.lat, req.lon], {
         title: `${team.name} → SOS #${req.id}`,
@@ -355,7 +380,7 @@ export default function FloodMap({
             html:
               `<div class="waterboard-pair${selected ? " waterboard-pair-selected" : ""}" title="${team.name} on SOS #${req.id}">` +
               `<div class="waterboard-chip waterboard-chip-team">TEAM</div>` +
-              `<div class="waterboard-chip waterboard-chip-sos waterboard-chip-sos-active">SOS</div>` +
+              `<div class="waterboard-chip waterboard-chip-sos waterboard-chip-sos-active${arrival.className}"${arrival.style}>SOS</div>` +
               `</div>`,
             iconSize: [56, 52],
             iconAnchor: [28, 26],
@@ -373,12 +398,13 @@ export default function FloodMap({
     for (const req of activeRequests) {
       if (pairedByRequest.has(String(req.id))) continue;
       const selected = String(selectedRequestId) === String(req.id);
+      const arrival = arrivalDecoration(req.id);
       addSosHalo(req, selected);
       L.marker([req.lat, req.lon], { title: `SOS #${req.id}`, zIndexOffset: 500 })
         .setIcon(
           L.divIcon({
             className: "waterboard-divicon",
-            html: `<div class="waterboard-chip waterboard-chip-sos waterboard-chip-solo${selected ? " waterboard-chip-selected" : ""}">SOS</div>`,
+            html: `<div class="waterboard-chip waterboard-chip-sos waterboard-chip-solo${selected ? " waterboard-chip-selected" : ""}${arrival.className}"${arrival.style}>SOS</div>`,
             iconSize: [52, 28],
             iconAnchor: [26, 14],
           }),
@@ -405,20 +431,16 @@ export default function FloodMap({
         .addTo(layers.teamUnits);
     }
   }, [
-    stormPath,
-    currentStorm,
-    threatRegions,
-    siteThreats,
-    floodMarks,
     requests,
     teams,
     assignments,
     selectedRequestId,
+    connected,
   ]);
 
   return (
     <>
-    <div className="waterboard-map-shell" style={{ position: "relative" }}>
+    <div className="waterboard-map-shell" data-live={connected} style={{ position: "relative" }}>
       <style>{`
         .waterboard-map-shell .leaflet-container {
           font: 13px/1.35 system-ui, sans-serif;
@@ -476,10 +498,43 @@ export default function FloodMap({
           font-size: 12px;
         }
         .waterboard-chip-sos {
+          position: relative;
+          isolation: isolate;
+          --sos-pulse-color: #ef4444;
           background: #b91c1c;
           border-radius: 999px;
         }
+        .waterboard-chip-sos::before,
+        .waterboard-chip-sos::after {
+          content: "";
+          position: absolute;
+          inset: -4px;
+          border: 2px solid var(--sos-pulse-color);
+          border-radius: inherit;
+          pointer-events: none;
+          z-index: -1;
+          opacity: 0;
+        }
+        .waterboard-map-shell[data-live="true"] .waterboard-chip-sos-new::before,
+        .waterboard-map-shell[data-live="true"] .waterboard-chip-sos-new::after {
+          animation: waterboardSosPulse 2.4s ease-out 2;
+          animation-delay: var(--sos-arrival-delay, 0ms);
+        }
+        .waterboard-map-shell[data-live="true"] .waterboard-chip-sos-new::after {
+          animation-delay: calc(var(--sos-arrival-delay, 0ms) + 1.2s);
+        }
+        @keyframes waterboardSosPulse {
+          from { transform: scale(1); opacity: .8; }
+          to { transform: scale(1.7, 2.1); opacity: 0; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .waterboard-map-shell[data-live="true"] .waterboard-chip-sos-new::before,
+          .waterboard-map-shell[data-live="true"] .waterboard-chip-sos-new::after {
+            animation: none;
+          }
+        }
         .waterboard-chip-sos-active {
+          --sos-pulse-color: #22c55e;
           background: #16a34a;
           border-color: #bbf7d0;
           box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.35), 0 1px 4px rgba(0,0,0,.35);

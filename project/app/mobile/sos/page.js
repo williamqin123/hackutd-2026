@@ -140,14 +140,20 @@ export default function MobileSosPage() {
   const [sosRecords] = useTable(tables.sos);
   const [rescueRequests] = useTable(tables.rescueRequest);
 
-  // Initialize with a random location in Harris County
-  const [randomInit] = useState(() => getRandomHarrisCountyLocation());
-  const [location, setLocation] = useState(randomInit.label);
-  const [coords, setCoords] = useState({
-    lat: randomInit.lat,
-    lon: randomInit.lon,
-  });
-  const [activeAreaName, setActiveAreaName] = useState(randomInit.name);
+  // Stable first render so a phone and the server match. Shuffle after mount.
+  const defaultLoc = HARRIS_COUNTY_LOCATIONS[0];
+  const [location, setLocation] = useState(
+    `${defaultLoc.address} (${defaultLoc.lat}, ${defaultLoc.lon})`,
+  );
+  const [coords, setCoords] = useState({ lat: defaultLoc.lat, lon: defaultLoc.lon });
+  const [activeAreaName, setActiveAreaName] = useState(defaultLoc.name);
+
+  useEffect(() => {
+    const next = getRandomHarrisCountyLocation();
+    setLocation(next.label);
+    setCoords({ lat: next.lat, lon: next.lon });
+    setActiveAreaName(next.name);
+  }, []);
 
   // Geolocation states
   const [geoStatus, setGeoStatus] = useState("idle"); // 'idle' | 'locating' | 'success' | 'error' | 'harris'
@@ -339,18 +345,32 @@ export default function MobileSosPage() {
           "Waiting for connection to SpacetimeDB… please check your connection and try again.",
         );
       }
+      if (!Number.isFinite(coords.lat) || !Number.isFinite(coords.lon)) {
+        throw new Error("Location is not ready yet. Pick a Harris County spot or turn location on.");
+      }
+      if (!conn.reducers.createRescueRequest) {
+        throw new Error("This device is on an older app build and cannot file a rescue request.");
+      }
 
-      // 1. Explicitly invoke createRescueRequest reducer to create the rescue_request record
-      if (conn.reducers.createRescueRequest) {
-        await conn.reducers.createRescueRequest({
-          lat: coords.lat,
-          lon: coords.lon,
-          peopleCount: peopleCount,
-          medicalUrgent: isMedical,
-          stranded: isStranded,
-          needsTransport: isTransport,
-          description: `[Mobile SOS] ${targetText} (Loc: ${targetLocation})`,
-        });
+      const before = new Set(
+        [...conn.db.rescueRequest.iter()].map((row) => String(row.id)),
+      );
+      await conn.reducers.createRescueRequest({
+        lat: coords.lat,
+        lon: coords.lon,
+        peopleCount: peopleCount,
+        medicalUrgent: isMedical,
+        stranded: isStranded,
+        needsTransport: isTransport,
+        description: `[Mobile SOS] ${targetText} (Loc: ${targetLocation})`,
+      });
+      const created = [...conn.db.rescueRequest.iter()].some(
+        (row) => !before.has(String(row.id)),
+      );
+      if (!created) {
+        throw new Error(
+          "The SOS did not land on the shared rescue board. Confirm this phone is using the same SpacetimeDB database as the dashboard.",
+        );
       }
 
       // 2. Explicitly invoke addSos reducer to create the record in the 'sos' table
@@ -400,7 +420,9 @@ export default function MobileSosPage() {
               className={`sos-status-dot ${isActive ? "online" : "connecting"}`}
             />
             <span className="sos-status-label">
-              {isActive ? "SPACETIMEDB ONLINE" : "CONNECTING TO GRID…"}
+              {isActive
+                ? `ONLINE · ${process.env.NEXT_PUBLIC_SPACETIMEDB_DB_NAME || "hackutd-2026-t3uux"}`
+                : "CONNECTING TO GRID…"}
             </span>
           </div>
 
