@@ -244,14 +244,17 @@ Ordered by demo value vs effort:
 
 ```text
 project/
-  spacetimedb/src/index.ts   ← schema + threat + dispatch logic
-  app/page.js                ← dashboard, timeline, seed, dispatch UI
-  app/FloodMap.js            ← Leaflet map
-  lib/floods.js              ← flood-mark JSON loader
-  lib/hazard.js              ← storm + USGS JSON loaders
-  public/                    ← JSON historical assets
-  docs/THE_WATERBOARD.md     ← this document (architecture / threat / schema)
-  docs/FRONTEND.md           ← where to edit UI code
+  spacetimedb/src/index.ts      ← schema + threat + dispatch logic
+  app/page.js                   ← dashboard composition / seed / dispatch
+  components/FloodMap.jsx       ← Leaflet threat map
+  components/SimulationClock.jsx← 1h play ticks, slider, 8h jump
+  components/ThreatSnapshot.jsx ← gage/site threat summary
+  lib/floods.js                 ← flood-mark JSON loader
+  lib/hazard.js                 ← storm + USGS JSON loaders
+  lib/sim-clock.js              ← Harvey window + tick helpers
+  public/                       ← JSON historical assets
+  docs/THE_WATERBOARD.md        ← this document (architecture / threat / schema)
+  docs/FRONTEND.md              ← where to edit UI code
 ```
 
 Frontend-only edit guide: [`FRONTEND.md`](./FRONTEND.md).
